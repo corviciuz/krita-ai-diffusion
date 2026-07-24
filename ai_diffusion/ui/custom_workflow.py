@@ -122,7 +122,8 @@ class IntParamWidget(QWidget):
 
         self._slider: QSlider | None = None
         assert param.min is not None and param.max is not None and param.default is not None
-        if param.max - param.min <= 200:
+        use_double = param.max > 2**31 - 1 or param.min < -(2**31)
+        if param.max - param.min <= 200 and not use_double:
             self._slider = QSlider(Qt.Orientation.Horizontal, parent)
             self._slider.setMinimumHeight(self._slider.minimumSizeHint().height() + 4)
             self._slider.valueChanged.connect(self._slider_changed)
@@ -130,13 +131,21 @@ class IntParamWidget(QWidget):
             self._widget.valueChanged.connect(self._input_changed)
             layout.addWidget(self._slider)
             layout.addWidget(self._widget)
+        elif use_double:
+            spin = QDoubleSpinBox(parent)
+            spin.setDecimals(0)
+            spin.valueChanged.connect(self._notify)
+            self._widget = spin
+            layout.addWidget(self._widget)
         else:
             self._widget = QSpinBox(parent)
             self._widget.valueChanged.connect(self._notify)
             layout.addWidget(self._widget)
 
-        min_range = clamp(int(param.min), -(2**31), 2**31 - 1)
-        max_range = clamp(int(param.max), -(2**31), 2**31 - 1)
+        min_limit = -(2**63) if use_double else -(2**31)
+        max_limit = 2**63 - 1 if use_double else 2**31 - 1
+        min_range = clamp(int(param.min), min_limit, max_limit)
+        max_range = clamp(int(param.max), min_limit, max_limit)
         self._widget.setRange(min_range, max_range)
         if self._slider is not None:
             self._slider.setRange(min_range, max_range)

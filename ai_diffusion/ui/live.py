@@ -168,7 +168,7 @@ class LiveWidget(QWidget):
         self.seed_input = QDoubleSpinBox(self)
         self.seed_input.setDecimals(0)
         self.seed_input.setMinimum(0)
-        self.seed_input.setMaximum(2**32 - 1)
+        self.seed_input.setMaximum(2**63 - 1)
         self.seed_input.setPrefix(_("Seed") + ": ")
         self.seed_input.setToolTip(
             _(

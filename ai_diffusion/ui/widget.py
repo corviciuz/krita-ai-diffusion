@@ -142,7 +142,7 @@ class QueuePopup(QMenu):
         self._seed_check = QCheckBox(self)
         self._seed_check.setText(_("Fixed"))
         self._seed_input.setMinimum(0)
-        self._seed_input.setMaximum(2**32 - 1)
+        self._seed_input.setMaximum(2**63 - 1)
         self._seed_input.setDecimals(0)
         self._seed_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self._seed_input.setToolTip(
