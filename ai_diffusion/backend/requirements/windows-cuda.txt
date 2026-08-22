@@ -534,7 +534,7 @@ torch==2.13.0+cu132
     #   torchsde
     #   torchvision
     # from https://download.pytorch.org/whl/cu132
-torchaudio==2.11.0+cu132
+torchaudio==2.11.0.dev20260822+cu132
     # via -r ai_diffusion/backend/requirements/base.in
     # from https://download.pytorch.org/whl/cu130
 torchsde==0.2.6
@@ -544,7 +544,7 @@ torchvision==0.28.0+cu132
     # via
     #   -r ai_diffusion/backend/requirements/base.in
     #   spandrel
-    # from https://download.pytorch.org/whl/cu130
+    # from https://download.pytorch.org/whl/cu132
 tqdm==4.70.0
     # via
     #   -r ai_diffusion/backend/requirements/base.in
