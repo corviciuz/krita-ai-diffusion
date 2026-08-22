@@ -499,7 +499,13 @@ class SamplerWidget(QWidget):
         self._preset.setMinimumWidth(230)
         self._preset.currentIndexChanged.connect(self._select_preset)
 
+        self._lock_params = SwitchWidget(self)
+        self._lock_params.setToolTip(_("Keep current steps and CFG when switching the sampler"))
+        self._lock_params.setChecked(getattr(settings, f"{prefix}lock_sampler_params", False))
+        self._lock_params.toggled.connect(self._set_lock)
+
         header_layout = QHBoxLayout()
+        header_layout.addWidget(self._lock_params)
         header_layout.addWidget(expander)
         header_layout.addStretch()
         header_layout.addWidget(self._preset)
@@ -547,8 +553,9 @@ class SamplerWidget(QWidget):
 
     def _select_preset(self, index: int):
         preset = self.preset
-        self._steps.value = preset.steps
-        self._cfg.value = preset.cfg
+        if not self._lock_params.isChecked():
+            self._steps.value = preset.steps
+            self._cfg.value = preset.cfg
         self._update_info()
         self.notify_changed()
 
@@ -573,6 +580,11 @@ class SamplerWidget(QWidget):
         self._steps.value = getattr(style, f"{self.prefix}sampler_steps")
         self._cfg.value = getattr(style, f"{self.prefix}cfg_scale")
         self._update_info()
+
+    def _set_lock(self, checked: bool):
+        setattr(settings, f"{self.prefix}lock_sampler_params", checked)
+        settings.save()
+        self.notify_changed()
 
     def write(self, style: Style):
         setattr(style, f"{self.prefix}sampler", self._preset.currentText())

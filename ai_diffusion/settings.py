@@ -367,6 +367,12 @@ class Settings(QObject):
     show_builtin_styles: bool
     _show_builtin_styles = Setting(_("Show pre-installed styles"), True)
 
+    lock_sampler_params: bool
+    _lock_sampler_params = Setting("Lock Sampler Steps/CFG", False)
+
+    live_lock_sampler_params: bool
+    _live_lock_sampler_params = Setting("Lock Live Sampler Steps/CFG", False)
+
     recent_styles_count: int
     _recent_styles_count = Setting(
         _("Recent Styles"),
