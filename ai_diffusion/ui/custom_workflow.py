@@ -5,10 +5,9 @@ from pathlib import Path
 from typing import Any
 
 from krita import Krita
-from PyQt5.QtCore import QMetaObject, QPoint, QSize, Qt, QUrl, QUuid, pyqtSignal
-from PyQt5.QtGui import QDesktopServices, QFontMetrics, QIcon, QPalette
-from PyQt5.QtWidgets import (
-    QAction,
+from PyQt6.QtCore import QMetaObject, QPoint, QSize, Qt, QUrl, QUuid, pyqtSignal
+from PyQt6.QtGui import QAction, QDesktopServices, QFontMetrics, QIcon, QPalette
+from PyQt6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QFileDialog,
@@ -67,7 +66,7 @@ class LayerSelect(QComboBox):
 
         self.setContentsMargins(0, 0, 0, 0)
         self.setMinimumContentsLength(20)
-        self.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLength)
+        self.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         self.currentIndexChanged.connect(lambda _: self.value_changed.emit())
 
         self._update()
@@ -123,7 +122,8 @@ class IntParamWidget(QWidget):
 
         self._slider: QSlider | None = None
         assert param.min is not None and param.max is not None and param.default is not None
-        if param.max - param.min <= 200:
+        use_double = param.max > 2**31 - 1 or param.min < -(2**31)
+        if param.max - param.min <= 200 and not use_double:
             self._slider = QSlider(Qt.Orientation.Horizontal, parent)
             self._slider.setMinimumHeight(self._slider.minimumSizeHint().height() + 4)
             self._slider.valueChanged.connect(self._slider_changed)
@@ -131,13 +131,21 @@ class IntParamWidget(QWidget):
             self._widget.valueChanged.connect(self._input_changed)
             layout.addWidget(self._slider)
             layout.addWidget(self._widget)
+        elif use_double:
+            spin = QDoubleSpinBox(parent)
+            spin.setDecimals(0)
+            spin.valueChanged.connect(self._notify)
+            self._widget = spin
+            layout.addWidget(self._widget)
         else:
             self._widget = QSpinBox(parent)
             self._widget.valueChanged.connect(self._notify)
             layout.addWidget(self._widget)
 
-        min_range = clamp(int(param.min), -(2**31), 2**31 - 1)
-        max_range = clamp(int(param.max), -(2**31), 2**31 - 1)
+        min_limit = -(2**63) if use_double else -(2**31)
+        max_limit = 2**63 - 1 if use_double else 2**31 - 1
+        min_range = clamp(int(param.min), min_limit, max_limit)
+        max_range = clamp(int(param.max), min_limit, max_limit)
         self._widget.setRange(min_range, max_range)
         if self._slider is not None:
             self._slider.setRange(min_range, max_range)
@@ -260,7 +268,9 @@ class BoolParamWidget(QWidget):
 
         fm = QFontMetrics(self.font())
         self._label = QLabel(self)
-        self._label.setMinimumWidth(max(fm.width(self._true_text), fm.width(self._false_text)) + 4)
+        self._label.setMinimumWidth(
+            max(fm.horizontalAdvance(self._true_text), fm.horizontalAdvance(self._false_text)) + 4
+        )
         self._widget = SwitchWidget(parent)
         self._widget.toggled.connect(self._notify)
         layout.addWidget(self._widget)
@@ -364,7 +374,7 @@ class ChoiceParamWidget(QComboBox):
         super().__init__(parent)
         self.param = param
         self.setMinimumContentsLength(20)
-        self.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLength)
+        self.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
 
         if param.choices:
             self.addItems(param.choices)
@@ -463,10 +473,13 @@ def _create_reset_button(parent: QWidget, text: str):
     return button
 
 
+ParamWidgetList = list[QLabel | CustomParamWidget]
+
+
 class GroupHeader(QWidget):
     def __init__(self, text: str, parent: QWidget | None = None):
         super().__init__(parent)
-        self._group_widgets: list[CustomParamWidget] = []
+        self._group_widgets: ParamWidgetList = []
 
         self._expander = ExpanderButton(text, self)
         self._expander.toggled.connect(self._show_group)
@@ -480,7 +493,7 @@ class GroupHeader(QWidget):
         layout.addWidget(self._expander, stretch=1, alignment=Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(self._reset_button, alignment=Qt.AlignmentFlag.AlignRight)
 
-    def set_group_widgets(self, widgets: list[CustomParamWidget], show_group: bool):
+    def set_group_widgets(self, widgets: ParamWidgetList, show_group: bool):
         self._group_widgets = widgets
         self._expander.setChecked(show_group)
         self._show_group(show_group)
@@ -515,7 +528,7 @@ class WorkflowParamsWidget(QWidget):
         self.setLayout(layout)
 
         params = sorted(params)
-        current_group: tuple[str, GroupHeader | None, list[CustomParamWidget]] = ("", None, [])
+        current_group: tuple[str, GroupHeader | None, ParamWidgetList] = ("", None, [])
 
         header = QLabel(_("Workflow Parameters"), self)
         reset_text = _("Reset all parameters to their default values")
@@ -551,7 +564,7 @@ class WorkflowParamsWidget(QWidget):
     def _notify(self):
         self.value_changed.emit()
 
-    def _create_group(self, expander: GroupHeader | None, widgets: list[CustomParamWidget]):
+    def _create_group(self, expander: GroupHeader | None, widgets: ParamWidgetList):
         display_height = sum(w.sizeHint().height() for w in widgets if not isinstance(w, QLabel))
         display_height += 2 * len(widgets)  # spacing
         if expander is not None:
@@ -911,7 +924,7 @@ class CustomWorkflowWidget(QWidget):
         width = self._generate_button.width() + self._mode_button.width()
         pos = QPoint(0, self._generate_button.height())
         self._generate_menu.setFixedWidth(width)
-        self._generate_menu.exec_(self._generate_button.mapToGlobal(pos))
+        self._generate_menu.exec(self._generate_button.mapToGlobal(pos))
 
     def _update_ui(self):
         is_live_mode = self.model.custom.mode is CustomGenerationMode.live
@@ -1020,8 +1033,7 @@ class CustomWorkflowWidget(QWidget):
             self,
             _("Delete Workflow"),
             _("Are you sure you want to delete the current workflow?") + f"\n{filepath}",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if q == QMessageBox.StandardButton.Yes:
             self.model.custom.remove_workflow()
@@ -1071,8 +1083,7 @@ class CustomWorkflowWidget(QWidget):
                     name=name
                 )
                 + details,
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
             if q == QMessageBox.StandardButton.Yes:
                 overwrite = True
