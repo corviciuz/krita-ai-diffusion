@@ -23,6 +23,7 @@ class SwitchWidget(QAbstractButton):
             False: lambda: self._base_offset,
         }
         self._offset = self._base_offset
+        self.toggled.connect(self._sync_offset)
 
     @pyqtProperty(int)
     def offset(self):  # type: ignore
@@ -32,6 +33,17 @@ class SwitchWidget(QAbstractButton):
     def offset(self, value):
         self._offset = value
         self.update()
+
+    def _sync_offset(self, checked: bool):
+        end = self._end_offset[checked]()
+        if self.isVisible():
+            anim = QPropertyAnimation(self, b"offset", self)
+            anim.setDuration(120)
+            anim.setStartValue(self._offset)
+            anim.setEndValue(end)
+            anim.start()
+        else:
+            self.offset = end
 
     def sizeHint(self):
         return QSize(
@@ -45,8 +57,7 @@ class SwitchWidget(QAbstractButton):
 
     @is_checked.setter
     def is_checked(self, checked):
-        super().setChecked(checked)
-        self.offset = self._end_offset[checked]()
+        self.setChecked(checked)
 
     def resizeEvent(self, a0):
         super().resizeEvent(a0)
@@ -88,9 +99,3 @@ class SwitchWidget(QAbstractButton):
 
     def mouseReleaseEvent(self, e):
         super().mouseReleaseEvent(e)
-        if e and e.button() == Qt.MouseButton.LeftButton:
-            anim = QPropertyAnimation(self, b"offset", self)
-            anim.setDuration(120)
-            anim.setStartValue(self.offset)
-            anim.setEndValue(self._end_offset[self.isChecked()]())
-            anim.start()
