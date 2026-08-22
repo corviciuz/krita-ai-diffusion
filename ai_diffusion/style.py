@@ -425,6 +425,22 @@ class SamplerPresets:
             return result
         if name in legacy_map:
             return self[legacy_map[name]]
+        if name in _sampler_map:
+            return SamplerPreset(
+                sampler=_sampler_map[name],
+                scheduler=_scheduler_map.get(name, "karras"),
+                steps=20,
+                cfg=7.0,
+            )
+        if " / " in name or "/" in name:
+            parts = [p.strip() for p in name.replace("/", " / ").split(" / ") if p.strip()]
+            if len(parts) == 2:
+                s_name, sch_name = parts[0], parts[1]
+                s_code = _sampler_map.get(s_name, s_name)
+                sch_code = _scheduler_map.get(sch_name, sch_name)
+                return SamplerPreset(sampler=s_code, scheduler=sch_code, steps=20, cfg=7.0)
+        if name:
+            return SamplerPreset(sampler=name, scheduler="karras", steps=20, cfg=7.0)
         raise KeyError(f"Sampler preset {name} not found")
 
     def items(self):
@@ -460,25 +476,59 @@ _sampler_map = {
     "DPM++ 2M Karras": "dpmpp_2m",
     "DPM++ 2M SDE": "dpmpp_2m_sde_gpu",
     "DPM++ 2M SDE Karras": "dpmpp_2m_sde_gpu",
+    "DPM++ 2M SDE CPU": "dpmpp_2m_sde",
+    "DPM++ 3M SDE": "dpmpp_3m_sde_gpu",
+    "DPM++ 3M SDE CPU": "dpmpp_3m_sde",
+    "DPM++ SDE": "dpmpp_sde_gpu",
     "DPM++ SDE Karras": "dpmpp_sde_gpu",
+    "DPM++ 2S Ancestral": "dpmpp_2s_ancestral",
+    "DPM2": "dpm_2",
+    "DPM2 Ancestral": "dpm_2_ancestral",
+    "DPM Fast": "dpm_fast",
+    "DPM Adaptive": "dpm_adaptive",
+    "UniPC": "uni_pc",
     "UniPC BH2": "uni_pc_bh2",
     "LCM": "lcm",
     "Lightning": "euler",
     "Euler": "euler",
+    "Euler Ancestral": "euler_ancestral",
     "Euler a": "euler_ancestral",
+    "Heun": "heun",
+    "Heun++2": "heunpp2",
+    "LMS": "lms",
+    "RES Multistep": "res_multistep",
+    "RES Multistep Ancestral": "res_multistep_ancestral",
+    "RES Multistep CFG++": "res_multistep_cfg_pp",
+    "iPNDM": "ipndm",
+    "iPNDM v": "ipndm_v",
+    "DEIS": "deis",
+    "DDPM": "ddpm",
 }
 _scheduler_map = {
     "DDIM": "ddim_uniform",
+    "DDIM Uniform": "ddim_uniform",
     "DPM++ 2M": "normal",
     "DPM++ 2M Karras": "karras",
     "DPM++ 2M SDE": "normal",
     "DPM++ 2M SDE Karras": "karras",
     "DPM++ SDE Karras": "karras",
-    "UniPC BH2": "ddim_uniform",
+    "UniPC BH2": "gits",
     "LCM": "sgm_uniform",
     "Lightning": "sgm_uniform",
     "Euler": "normal",
     "Euler a": "normal",
+    "Normal": "normal",
+    "Karras": "karras",
+    "Exponential": "exponential",
+    "SGM Uniform": "sgm_uniform",
+    "Simple": "simple",
+    "Beta": "beta",
+    "Linear Quadratic": "linear_quadratic",
+    "KL Optimal": "kl_optimal",
+    "GITS": "gits",
+    "DDPM": "ddpm",
+    "Flux 2": "flux2",
+    "Align Your Steps": "align_your_steps",
 }
 _sampler_presets_stub = """// Custom sampler presets - add your own sampler presets here!
 // https://docs.interstice.cloud/samplers
