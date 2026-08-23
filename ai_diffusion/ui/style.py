@@ -31,7 +31,7 @@ from ..files import File, FileFilter, FileFormat, FileSource
 from ..localization import translate as _
 from ..model.root import root
 from ..settings import ServerMode, Setting, settings
-from ..style import SamplerPresets, Style, Styles, StyleSettings
+from ..style import SamplerPresets, Style, Styles, StyleSettings, scheduler_names
 from . import theme
 from .settings_widgets import (
     ComboBoxSetting,
@@ -667,6 +667,16 @@ class SamplerWidget(QWidget):
         self._preset.setMinimumWidth(230)
         self._preset.currentIndexChanged.connect(self._select_preset)
 
+        self._scheduler = QComboBox(self)
+        self._scheduler.addItem(_("Preset Default"), "")
+        for name in scheduler_names():
+            self._scheduler.addItem(name, name)
+        self._scheduler.setMinimumWidth(140)
+        self._scheduler.setToolTip(
+            _("Override the noise schedule (scheduler) of the selected sampler preset")
+        )
+        self._scheduler.currentIndexChanged.connect(self.notify_changed)
+
         self._lock_params = SwitchWidget(self)
         self._lock_params.setToolTip(_("Keep current steps and CFG when switching the sampler"))
         self._lock_params.setChecked(getattr(settings, f"{prefix}lock_sampler_params", False))
@@ -676,6 +686,7 @@ class SamplerWidget(QWidget):
         header_layout.addWidget(self._lock_params)
         header_layout.addWidget(expander)
         header_layout.addStretch()
+        header_layout.addWidget(self._scheduler)
         header_layout.addWidget(self._preset)
 
         anchor = _("Edit custom presets")
@@ -745,6 +756,8 @@ class SamplerWidget(QWidget):
 
     def read(self, style: Style):
         self._preset.setCurrentText(getattr(style, f"{self.prefix}sampler"))
+        index = self._scheduler.findData(getattr(style, f"{self.prefix}scheduler", ""))
+        self._scheduler.setCurrentIndex(max(index, 0))
         self._steps.value = getattr(style, f"{self.prefix}sampler_steps")
         self._cfg.value = getattr(style, f"{self.prefix}cfg_scale")
         self._update_info()
@@ -755,6 +768,7 @@ class SamplerWidget(QWidget):
 
     def write(self, style: Style):
         setattr(style, f"{self.prefix}sampler", self._preset.currentText())
+        setattr(style, f"{self.prefix}scheduler", self._scheduler.currentData())
         setattr(style, f"{self.prefix}sampler_steps", self._steps.value)
         setattr(style, f"{self.prefix}cfg_scale", self._cfg.value)
 

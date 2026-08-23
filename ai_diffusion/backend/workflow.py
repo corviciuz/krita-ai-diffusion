@@ -63,12 +63,13 @@ def generate_seed():
 
 def sampling_from_style(style: Style, strength: float, is_live: bool):
     sampler_name = style.live_sampler if is_live else style.sampler
+    scheduler_override = style.live_scheduler if is_live else style.scheduler
     cfg = style.live_cfg_scale if is_live else style.cfg_scale
     min_steps, max_steps = style.get_steps(is_live=is_live)
     preset = SamplerPresets.instance()[sampler_name]
     result = SamplingInput(
         sampler=preset.sampler,
-        scheduler=preset.scheduler,
+        scheduler=scheduler_override or preset.scheduler,
         cfg_scale=cfg or preset.cfg,
         total_steps=max_steps,
     )

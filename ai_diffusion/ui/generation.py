@@ -206,6 +206,7 @@ class HistoryWidget(QListWidget):
         "checkpoint": _("Model"),
         "loras": _("LoRA"),
         "sampler": _("Sampler"),
+        "scheduler": _("Scheduler"),
         "seed": _("Seed"),
         "steps": _("Sampler Steps"),
         "guidance": _("Guidance Strength (CFG Scale)"),

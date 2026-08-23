@@ -11,7 +11,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from ..backend.api import InpaintMode, WorkflowKind
 from ..image import Bounds, ImageCollection
 from ..settings import settings
-from ..style import Style
+from ..style import SamplerPresets, Style
 from ..util import ensure
 
 if TYPE_CHECKING:
@@ -90,6 +90,11 @@ class JobParams:
         self.metadata["style"] = style.filename
         self.metadata["checkpoint"] = checkpoint
         self.metadata["sampler"] = style.sampler
+        scheduler = style.scheduler
+        if not scheduler:
+            preset = SamplerPresets.instance()[style.sampler]
+            scheduler = preset.scheduler
+        self.metadata["scheduler"] = scheduler
         self.metadata["steps"] = style.sampler_steps
         self.metadata["guidance"] = style.cfg_scale
 

@@ -117,6 +117,14 @@ class StyleSettings:
     live_sampler_steps = Setting(_("Sampler Steps"), 6, sampler_steps.desc)
     live_cfg_scale = Setting(_("Guidance Strength (CFG Scale)"), 1.8, cfg_scale.desc)
 
+    scheduler = Setting(
+        _("Scheduler"),
+        "",
+        _("Noise schedule for the sampler. Empty means use the scheduler of the selected sampler preset."),
+        items=None,
+    )
+    live_scheduler = Setting(_("Scheduler"), "", scheduler.desc, items=None)
+
 
 class Style(QObject):
     filepath: Path
@@ -136,9 +144,11 @@ class Style(QObject):
     preferred_resolution: int = StyleSettings.preferred_resolution.default
     linked_edit_style: str = StyleSettings.linked_edit_style.default
     sampler: str = StyleSettings.sampler.default
+    scheduler: str = StyleSettings.scheduler.default
     sampler_steps: int = StyleSettings.sampler_steps.default
     cfg_scale: float = StyleSettings.cfg_scale.default
     live_sampler: str = StyleSettings.live_sampler.default
+    live_scheduler: str = StyleSettings.live_scheduler.default
     live_sampler_steps: int = StyleSettings.live_sampler_steps.default
     live_cfg_scale: float = StyleSettings.live_cfg_scale.default
 
@@ -456,6 +466,68 @@ class SamplerPresets:
             )
 
         return [name for name, preset in self._presets.items() if is_visible(name, preset)]
+
+
+_comfy_schedulers = [
+    "normal",
+    "karras",
+    "exponential",
+    "sgm_uniform",
+    "simple",
+    "ddim_uniform",
+    "beta",
+    "linear_quadratic",
+    "kl_optimal",
+    "git",
+    "gits",
+    "flux2",
+    "align_your_steps",
+    "ayss_res",
+    "res_multistep",
+    "ltxv",
+]
+
+_comfy_samplers = [
+    "euler",
+    "euler_ancestral",
+    "euler_cfg_pp",
+    "euler_ancestral_cfg_pp",
+    "heun",
+    "heunpp2",
+    "dpm_2",
+    "dpm_2_ancestral",
+    "lms",
+    "dpm_fast",
+    "dpm_adaptive",
+    "dpmpp_2s_ancestral",
+    "dpmpp_2s_ancestral_cfg_pp",
+    "dpmpp_sde",
+    "dpmpp_sde_gpu",
+    "dpmpp_2m",
+    "dpmpp_2m_cfg_pp",
+    "dpmpp_2m_sde",
+    "dpmpp_2m_sde_gpu",
+    "dpmpp_3m_sde",
+    "dpmpp_3m_sde_gpu",
+    "ddpm",
+    "ddim",
+    "uni_pc",
+    "uni_pc_bh2",
+    "lcm",
+    "ipndm",
+    "ipndm_v",
+    "deis",
+    "res_multistep",
+    "res_multistep_cfg_pp",
+    "gradient_estimation",
+    "er_sde",
+    "seeds_2",
+    "seeds_3",
+]
+
+
+def scheduler_names():
+    return _comfy_schedulers
 
 
 legacy_map = {

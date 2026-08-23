@@ -331,6 +331,7 @@ def create_img_metadata(params: JobParams):
     prompt = meta.get("prompt_final", meta.get("prompt", ""))
     neg_prompt = meta.get("negative_prompt_final", meta.get("negative_prompt", ""))
     sampler = meta.get("sampler", "")
+    scheduler = meta.get("scheduler", "")
     steps = meta.get("steps", 0)
     cfg_scale = meta.get("guidance", 0.0)
     model = meta.get("checkpoint", "Unknown")
@@ -360,7 +361,7 @@ def create_img_metadata(params: JobParams):
     lines.append(full_prompt)
     lines.append(f"Negative prompt: {neg_prompt}")
     lines.append(
-        f"Steps: {steps}, Sampler: {sampler}, CFG scale: {cfg_scale}, Seed: {seed}, Size: {width}x{height}, Model hash: unknown, Model: {model}"
+        f"Steps: {steps}, Sampler: {sampler}, Scheduler: {scheduler}, CFG scale: {cfg_scale}, Seed: {seed}, Size: {width}x{height}, Model hash: unknown, Model: {model}"
     )
 
     if strength is not None and strength != 1.0:
