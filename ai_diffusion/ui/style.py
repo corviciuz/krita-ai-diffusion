@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import cast
 
 from krita import Krita
-from PyQt6.QtCore import Qt, QUrl, pyqtSignal
-from PyQt6.QtGui import QColor, QDesktopServices, QPalette
+from PyQt6.QtCore import Qt, QPoint, QTimer, QUrl, pyqtSignal
+from PyQt6.QtGui import QColor, QCursor, QDesktopServices, QMouseEvent, QPalette
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMenu,
     QMessageBox,
     QPushButton,
     QSpinBox,
@@ -50,6 +51,39 @@ from .theme import SignalBlocker, add_header, icon
 from .widget import create_framed_label
 
 
+class _DragHandle(QLabel):
+    drag_started = pyqtSignal(QPoint)
+    drag_moved = pyqtSignal(QPoint)
+    drag_finished = pyqtSignal(QPoint)
+
+    def __init__(self, parent=None):
+        super().__init__("⋯", parent)
+        font = self.font()
+        font.setPointSize(font.pointSize() + 1)
+        font.setBold(True)
+        self.setFont(font)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setFixedWidth(16)
+        self.setCursor(Qt.CursorShape.OpenHandCursor)
+        self.setToolTip(_("Drag to reorder"))
+
+    def mousePressEvent(self, e: QMouseEvent):
+        if e.button() == Qt.MouseButton.LeftButton:
+            self.grabMouse()
+            self.drag_started.emit(e.globalPosition().toPoint())
+        e.accept()
+
+    def mouseMoveEvent(self, e: QMouseEvent):
+        self.drag_moved.emit(e.globalPosition().toPoint())
+        e.accept()
+
+    def mouseReleaseEvent(self, e: QMouseEvent):
+        if e.button() == Qt.MouseButton.LeftButton:
+            self.releaseMouse()
+            self.drag_finished.emit(e.globalPosition().toPoint())
+        e.accept()
+
+
 class LoraItem(QWidget):
     changed = pyqtSignal()
     removed = pyqtSignal(QWidget)
@@ -72,6 +106,8 @@ class LoraItem(QWidget):
         grey_text = self.palette()
         grey_text.setColor(QPalette.ColorRole.WindowText, QColor(theme.grey))
 
+        self._drag_handle = _DragHandle(parent=self)
+
         self._advanced_button = ExpanderButton(parent=self)
         self._advanced_button.toggled.connect(self._expand)
 
@@ -86,6 +122,7 @@ class LoraItem(QWidget):
         expander_layout = QHBoxLayout()
         expander_layout.setContentsMargins(0, 0, 0, 0)
         expander_layout.setSpacing(0)
+        expander_layout.addWidget(self._drag_handle)
         expander_layout.addWidget(self._advanced_button)
         expander_layout.addWidget(self._select)
 
@@ -103,6 +140,10 @@ class LoraItem(QWidget):
         self._strength.setPrefix(_("Strength") + ": ")
         self._strength.setSuffix("%")
         self._strength.valueChanged.connect(self._notify_changed)
+
+        self._drag_handle.drag_started.connect(self._start_drag)
+        self._drag_handle.drag_moved.connect(self._move_drag)
+        self._drag_handle.drag_finished.connect(self._end_drag)
 
         self._remove = QToolButton(self)
         self._remove.setIcon(icon("discard"))
@@ -188,6 +229,21 @@ class LoraItem(QWidget):
 
     def _expand(self):
         self._advanced.setVisible(self._advanced_button.isChecked())
+
+    def _start_drag(self, pos: QPoint):
+        p = self.parent()
+        if isinstance(p, LoraList):
+            p.begin_drag(self, pos)
+
+    def _move_drag(self, pos: QPoint):
+        p = self.parent()
+        if isinstance(p, LoraList):
+            p.update_drag(pos)
+
+    def _end_drag(self, pos: QPoint):
+        p = self.parent()
+        if isinstance(p, LoraList):
+            p.end_drag(pos)
 
     def _notify_changed(self):
         self._update()
@@ -353,6 +409,7 @@ class LoraList(QWidget):
         self._add_button = QPushButton(_("Add"), self)
         self._add_button.setMinimumWidth(100)
         self._add_button.clicked.connect(self._add_item)
+        self._add_button.pressed.connect(self._start_add_hold_timer)
         header_layout.addWidget(self._add_button, 1)
 
         self._upload_button = QPushButton(icon("upload"), "  " + _("Upload"), self)
@@ -361,7 +418,7 @@ class LoraList(QWidget):
         header_layout.addWidget(self._upload_button, 1)
 
         self._filter_combo = QComboBox(self)
-        self._filter_combo.currentIndexChanged.connect(self._set_filtered_names)
+        self._filter_combo.currentIndexChanged.connect(self._filter_changed)
         header_layout.addWidget(self._filter_combo, 2)
 
         self._refresh_button = QToolButton(self)
@@ -410,11 +467,113 @@ class LoraList(QWidget):
         self._item_list.addWidget(item)
         self.value_changed.emit()
 
+    def _start_add_hold_timer(self):
+        if not hasattr(self, "_add_hold_timer"):
+            self._add_hold_timer = QTimer(self)
+            self._add_hold_timer.setSingleShot(True)
+            self._add_hold_timer.setInterval(400)
+            self._add_hold_timer.timeout.connect(self._show_lora_picker)
+        self._add_hold_timer.start()
+
+    def _show_lora_picker(self):
+        loras = [f for f in root.files.loras if f.source is not FileSource.unavailable]
+        if self.filter_prefix:
+            loras = [f for f in loras if f.id.startswith(self.filter_prefix)]
+        if len(loras) < 2:
+            return
+        menu = QMenu(self)
+        for lora in sorted(loras, key=lambda f: f.id.lower()):
+            action = menu.addAction(lora.id)
+            action.setToolTip(lora.id)
+            action.triggered.connect(
+                lambda _, file=lora: self._add_item(file)  # type: ignore[misc]
+            )
+        menu.exec(QCursor.pos())
+        self._add_button.setDown(False)
+
     def _remove_item(self, item: LoraItem):
         # removing and creating items is slow, hiding allows reuse
         item.is_active = False
         self._item_list.removeWidget(item)
         self.value_changed.emit()
+
+    def begin_drag(self, item: LoraItem, pos: QPoint):
+        self._drag_item = item
+        self._drag_pos = pos
+        self._drag_insert_at = -1
+        item.setVisible(False)
+        placeholder = QWidget(self)
+        placeholder.setStyleSheet(
+            f"background-color: transparent; border: 1px solid {theme.grey}; border-radius: 2px;"
+        )
+        placeholder.setFixedHeight(item.sizeHint().height())
+        self._drag_placeholder = placeholder
+        self._item_list.insertWidget(self._item_list.indexOf(item), placeholder)
+        self._update_drag_indicator(pos)
+
+    def update_drag(self, pos: QPoint):
+        if getattr(self, "_drag_item", None) is None:
+            return
+        self._drag_pos = pos
+        self._update_drag_indicator(pos)
+
+    def end_drag(self, pos: QPoint):
+        item = getattr(self, "_drag_item", None)
+        if item is None:
+            return
+        index = self._update_drag_indicator(pos)
+        if getattr(self, "_drop_line", None) is not None:
+            self._drop_line.setVisible(False)
+        self._item_list.removeWidget(self._drag_placeholder)
+        self._drag_placeholder.deleteLater()
+        self._drag_placeholder = None
+        self._drag_item = None
+        if index >= 0:
+            self._items.remove(item)
+            active = [i for i in self._items if i.is_active]
+            inactive = [i for i in self._items if not i.is_active]
+            active.insert(index, item)
+            self._items[:] = active + inactive
+            self._reorder_widgets()
+            item.setVisible(True)
+            self.value_changed.emit()
+        else:
+            item.setVisible(True)
+
+    def _reorder_widgets(self):
+        for item in self._items:
+            if item.is_active:
+                self._item_list.addWidget(item)
+
+    def _update_drag_indicator(self, global_pos: QPoint) -> int:
+        pos = self.mapFromGlobal(global_pos)
+        active = [i for i in self._items if i.is_active and i is not self._drag_item]
+        insert_at = len(active)
+        y = pos.y()
+        for n, item in enumerate(active):
+            geo = item.geometry()
+            if y < geo.center().y():
+                insert_at = n
+                break
+        line = getattr(self, "_drop_line", None)
+        if line is None:
+            line = self._drop_line = QFrame(self)
+            line.setFrameShape(QFrame.Shape.HLine)
+            line.setStyleSheet(f"background-color: {theme.strong_highlight};")
+            line.setFixedHeight(3)
+            line.setVisible(False)
+        width = max((i.width() for i in active), default=self.width())
+        x = min((i.x() for i in active), default=0)
+        if insert_at < len(active):
+            geo = active[insert_at].geometry()
+            line.setGeometry(x, geo.top() - 1, width, 3)
+        elif active:
+            geo = active[-1].geometry()
+            line.setGeometry(x, geo.bottom() + 1, width, 3)
+        line.raise_()
+        line.setVisible(True)
+        return insert_at
+
 
     def _update_item(self):
         self.value_changed.emit()
@@ -443,6 +602,10 @@ class LoraList(QWidget):
         for item in self._items:
             item.apply_filter()
 
+    def _filter_changed(self):
+        self._set_filtered_names()
+        self.value_changed.emit()
+
     def _upload_lora(self):
         filepath = QFileDialog.getOpenFileName(
             self, _("Select LoRA file"), None, "LoRA files (*.safetensors)"
@@ -465,6 +628,11 @@ class LoraList(QWidget):
     @property
     def filter_prefix(self):
         return self.filter if self.filter != "All" else ""
+
+    def set_filter_from_style(self, folder: str):
+        LoraList.last_filter = folder if folder else "All"
+        self._filter_combo.setCurrentText(LoraList.last_filter)
+        self._set_filtered_names()
 
     @property
     def value(self):
@@ -967,6 +1135,7 @@ class StylePresets(SettingsTab):
             for name, widget in self._style_widgets.items():
                 widget.value = getattr(style, name)
             self._loras.value = style.loras  # type: ignore
+            self._loras.set_filter_from_style(style.lora_folder)
             self._default_sampler.read(style)
             self._live_sampler.read(style)
         self._show_builtin_info(style)
@@ -990,6 +1159,7 @@ class StylePresets(SettingsTab):
             if widget.value is not None:
                 setattr(style, name, widget.value)
         style.loras = self._loras.value
+        style.lora_folder = "" if self._loras.filter == "All" else self._loras.filter
         self._write_checkpoint(style)
         self._default_sampler.write(style)
         self._live_sampler.write(style)

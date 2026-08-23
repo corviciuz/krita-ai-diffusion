@@ -43,6 +43,8 @@ class StyleSettings:
         _("Extensions to the checkpoint which expand its range based on additional training"),
     )
 
+    lora_folder = Setting(_("LoRA Folder"), "", _("Folder to pick new LoRAs from"))
+
     style_prompt = Setting(
         _("Style Prompt"),
         "best quality, highres",
@@ -123,6 +125,7 @@ class Style(QObject):
     architecture: Arch = StyleSettings.architecture.default
     checkpoints: list[str] = StyleSettings.checkpoints.default
     loras: list[dict[str, str | float | bool]]
+    lora_folder: str = StyleSettings.lora_folder.default
     style_prompt: str = StyleSettings.style_prompt.default
     negative_prompt: str = StyleSettings.negative_prompt.default
     vae: str = StyleSettings.vae.default
