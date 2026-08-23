@@ -367,3 +367,14 @@ def create_img_metadata(params: JobParams):
         lines[-1] += f", Denoising strength: {strength}"
 
     return "\n".join(lines)
+
+
+def create_prompt_xmp(metadata_text: str):
+    escaped = metadata_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return f'''<?xpacket begin="\\ufeff" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/">
+ <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description rdf:about="" xmlns:krita="https://krita.org/ns/ai-diffusion/" krita:parameters="{escaped}"/>
+ </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end="w"?>'''

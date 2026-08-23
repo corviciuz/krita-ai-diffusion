@@ -59,7 +59,12 @@ from ..settings import (
     settings,
 )
 from ..style import Arch, Style, Styles
-from ..text import create_ai_generated_xmp, create_img_metadata, extract_layers
+from ..text import (
+    create_ai_generated_xmp,
+    create_img_metadata,
+    create_prompt_xmp,
+    extract_layers,
+)
 from ..util import PluginError, clamp, ensure, trim_text, unique
 from ..util import client_logger as log
 from .connection import Connection, ConnectionState
@@ -1648,11 +1653,25 @@ def _save_job_result(model: DocumentModel, job: Job | None, index: int):
     result_image = job.results[index]
     base_image.draw_image(result_image, job.params.bounds.offset)
 
-    if settings.save_image_metadata and ext == ".png":
+    if settings.save_image_metadata:
         metadata_text = create_img_metadata(job.params)
-        base_image.save_png_with_metadata(
-            filepath=path, metadata_text=metadata_text, format=settings.save_image_format
-        )
+
+        if ext == ".png":
+            base_image.save_png_with_metadata(
+                filepath=path, metadata_text=metadata_text, format=ImageFileFormat.png
+            )
+        else:
+            quality = None
+            if settings.save_image_format is ImageFileFormat.webp:
+                quality = settings.save_image_quality_webp
+            elif settings.save_image_format is ImageFileFormat.jpeg:
+                quality = settings.save_image_quality_jpeg
+
+            base_image.save(path, settings.save_image_format, quality)
+            xmp = create_prompt_xmp(metadata_text)
+            if settings.server_mode is ServerMode.cloud:
+                xmp += create_ai_generated_xmp(job.params.workflow_kind)
+            base_image.write_xmp_metadata(path, xmp)
     else:
         quality = None
         if settings.save_image_format is ImageFileFormat.webp:
@@ -1662,6 +1681,6 @@ def _save_job_result(model: DocumentModel, job: Job | None, index: int):
 
         base_image.save(path, settings.save_image_format, quality)
 
-    if settings.server_mode is ServerMode.cloud:
+    if settings.server_mode is ServerMode.cloud and not settings.save_image_metadata:
         xmp = create_ai_generated_xmp(job.params.workflow_kind)
         base_image.write_xmp_metadata(path, xmp)

@@ -755,8 +755,6 @@ class InterfaceSettings(SettingsTab):
         self.add("save_image_metadata", SwitchSetting(S._save_image_metadata, parent=self))
         self.add("debug_dump_workflow", SwitchSetting(S._debug_dump_workflow, parent=self))
 
-        self._widgets["save_image_format"].value_changed.connect(self._update_image_format_widgets)
-
         languages = [(lang.name, lang.id) for lang in Localization.available]
         self._widgets["language"].set_items(languages)
         self.update_translation(root.connection.client_if_connected)
@@ -768,7 +766,6 @@ class InterfaceSettings(SettingsTab):
 
     def read(self):
         super().read()
-        self._update_image_format_widgets()
 
     def _tag_files(self) -> list[str]:
         plugin_tags_path = util.plugin_dir / "tags"
@@ -798,10 +795,6 @@ class InterfaceSettings(SettingsTab):
         translation.enabled = client is not None
         translation.set_items(languages)
         self.read()
-
-    def _update_image_format_widgets(self):
-        fmt: ImageFileFormat = self._widgets["save_image_format"].value
-        self._widgets["save_image_metadata"].enabled = fmt.extension == "png"
 
 
 class HistorySizeWidget(QWidget):

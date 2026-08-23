@@ -197,8 +197,10 @@ class HistoryWidget(QListWidget):
     _job_info_translations: ClassVar[dict[str, str]] = {
         "prompt": _("Prompt"),
         "prompt_eval": _("Prompt (Evaluated)"),
+        "prompt_final": _("Prompt (Final)"),
         "negative_prompt": _("Negative Prompt"),
         "negative_prompt_eval": _("Negative Prompt (Evaluated)"),
+        "negative_prompt_final": _("Negative Prompt (Final)"),
         "style": _("Style"),
         "strength": _("Strength"),
         "checkpoint": _("Model"),
@@ -499,6 +501,16 @@ class HistoryWidget(QListWidget):
             data = job.params.metadata.copy()
             if style:
                 data["style"] = f"{style.name} ({style.filename})"
+            data["seed"] = job.params.seed
+            for v in data.get("loras", []):
+                if isinstance(v, dict):
+                    triggers = ""
+                    if file := root.files.loras.find(v.get("name", "")):
+                        triggers = file.meta("lora_triggers", "")
+                    items = list(v.items())
+                    items.insert(1, ("trigger", triggers))
+                    v.clear()
+                    v.update(items)
             text = json.dumps(data, indent=2)
             clipboard.setText(text)
 
