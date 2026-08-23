@@ -584,7 +584,6 @@ class SamplerWidget(QWidget):
     def _set_lock(self, checked: bool):
         setattr(settings, f"{self.prefix}lock_sampler_params", checked)
         settings.save()
-        self.notify_changed()
 
     def write(self, style: Style):
         setattr(style, f"{self.prefix}sampler", self._preset.currentText())
