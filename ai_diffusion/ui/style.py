@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
     QSpinBox,
     QToolButton,
     QVBoxLayout,
@@ -25,7 +26,14 @@ from PyQt6.QtWidgets import (
 )
 
 from ..backend.client import filter_supported_styles, resolve_arch
-from ..backend.resources import Arch, ResourceId, ResourceKind, search_paths
+from ..backend.resources import (
+    Arch,
+    ResourceId,
+    ResourceKind,
+    UpscalerName,
+    search_paths,
+)
+from .upscale import _upscaler_order
 from ..backend.server import Server
 from ..files import File, FileFilter, FileFormat, FileSource
 from ..localization import translate as _
@@ -927,6 +935,11 @@ class StylePresets(SettingsTab):
             "linked_edit_style", ComboBoxSetting(StyleSettings.linked_edit_style, parent=self)
         )
 
+        self._refine_model = add(
+            "linked_refine_model", ComboBoxSetting(StyleSettings.linked_refine_model, parent=self)
+        )
+        self._refine_model.value_changed.connect(self.write)
+
         sdesc = _("Configure sampler type, steps and CFG to tweak the quality of generated images.")
         add_header(self._layout, Setting(_("Sampler Settings"), "", sdesc))
 
@@ -1074,6 +1087,27 @@ class StylePresets(SettingsTab):
             if s != self.current_style and resolve_arch(s, client).supports_edit
         )
         self._edit_style.set_items(edit_styles)
+        refine_models = [(_("None"), "")]
+        if client:
+            for file in sorted(client.models.upscalers, key=_upscaler_order):
+                if file in [
+                    UpscalerName.fast_3x.value,
+                    UpscalerName.fast_4x.value,
+                ]:
+                    continue
+                name = file.removesuffix(".safetensors").removesuffix(".pth")
+                if file == UpscalerName.default.value:
+                    name = f"Default ({name})"
+                elif file == UpscalerName.fast_2x.value:
+                    name = f"Fast ({name})"
+                elif file == UpscalerName.quality.value:
+                    name = f"Quality ({name})"
+                elif file == UpscalerName.sharp.value:
+                    name = f"Sharp ({name})"
+                elif file == UpscalerName.refine.value:
+                    name = f"Refine ({name})"
+                refine_models.append((name, file))
+        self._refine_model.set_items(refine_models)
 
     def _read_checkpoint(self, style: Style):
         if client := root.connection.client_if_connected:
@@ -1150,6 +1184,7 @@ class StylePresets(SettingsTab):
                 widget.value = getattr(style, name)
             self._loras.value = style.loras  # type: ignore
             self._loras.set_filter_from_style(style.lora_folder)
+            self._refine_model.value = style.linked_refine_model
             self._default_sampler.read(style)
             self._live_sampler.read(style)
         self._show_builtin_info(style)
@@ -1174,6 +1209,7 @@ class StylePresets(SettingsTab):
                 setattr(style, name, widget.value)
         style.loras = self._loras.value
         style.lora_folder = "" if self._loras.filter == "All" else self._loras.filter
+        style.linked_refine_model = self._refine_model.value
         self._write_checkpoint(style)
         self._default_sampler.write(style)
         self._live_sampler.write(style)

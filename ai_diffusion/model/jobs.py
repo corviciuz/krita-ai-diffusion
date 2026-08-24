@@ -97,6 +97,7 @@ class JobParams:
         self.metadata["scheduler"] = scheduler
         self.metadata["steps"] = style.sampler_steps
         self.metadata["guidance"] = style.cfg_scale
+        self.metadata["refine"] = style.linked_refine_model or "none"
 
     def set_control(self, control: control.ControlLayerList):
         self.metadata["control"] = [

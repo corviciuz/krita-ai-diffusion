@@ -160,26 +160,61 @@
         "minimum_steps": 4,
         "cfg": 7.0
     },
-    "Align Your Steps - DPM++ 2M": {
-        "sampler": "dpmpp_2m",
-        "scheduler": "align_your_steps",
+    "DPM Fast": {
+        "sampler": "dpm_fast",
+        "scheduler": "normal",
         "steps": 20,
         "minimum_steps": 4,
-        "cfg": 6.0
+        "cfg": 7.0
     },
-    "Align Your Steps - Euler": {
-        "sampler": "euler",
-        "scheduler": "align_your_steps",
+    "DPM Adaptive": {
+        "sampler": "dpm_adaptive",
+        "scheduler": "exponential",
         "steps": 20,
         "minimum_steps": 4,
-        "cfg": 6.0
+        "cfg": 7.0
     },
-    "KL Optimal - DPM++ 2M": {
-        "sampler": "dpmpp_2m",
-        "scheduler": "kl_optimal",
+    "DDPM": {
+        "sampler": "ddpm",
+        "scheduler": "normal",
         "steps": 20,
         "minimum_steps": 4,
-        "cfg": 6.0
+        "cfg": 7.0
+    },
+    "iPNDM": {
+        "sampler": "ipndm",
+        "scheduler": "normal",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
+    "iPNDM v": {
+        "sampler": "ipndm_v",
+        "scheduler": "normal",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
+    "DEIS": {
+        "sampler": "deis",
+        "scheduler": "normal",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
+    "ER SDE": {
+        "sampler": "er_sde",
+        "scheduler": "normal",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
+    "Gradien Estimation": {
+        "sampler": "gradient_estimation",
+        "scheduler": "normal",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
     },
     "RES multistep simple": {
         "sampler": "res_multistep",

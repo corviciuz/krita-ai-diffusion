@@ -1024,6 +1024,10 @@ class ComfyWorkflow:
         self.sample_count += 4  # approx, actual number depends on model and image size
         return self.add("ImageUpscaleWithModel", 1, upscale_model=upscale_model, image=image)
 
+    def refine_image(self, upscale_model: Output, image: Output, extent: Extent):
+        up = self.add("ImageUpscaleWithModel", 1, upscale_model=upscale_model, image=image)
+        return self.scale_image(up, extent)
+
     def invert_image(self, image: Output):
         return self.add("ImageInvert", 1, image=image)
 

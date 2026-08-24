@@ -851,6 +851,7 @@ class MiscParams(NamedTuple):
     layer_count: int
     color_match: float
     nsfw_filter: float
+    refine_model: str = ""
 
 
 def generate(
@@ -880,6 +881,9 @@ def generate(
     )
     out_image = w.nsfw_filter(out_image, sensitivity=misc.nsfw_filter)
     out_image = scale_to_target(extent, w, out_image, models)
+    if misc.refine_model:
+        upscale_model = w.load_upscale_model(misc.refine_model)
+        out_image = w.refine_image(upscale_model, out_image, extent.desired)
     w.send_image(out_image)
     return w
 
@@ -1168,6 +1172,9 @@ def refine(
     out_image = vae_decode(w, vae, sampler, checkpoint.tiled_vae)
     out_image = w.nsfw_filter(out_image, sensitivity=misc.nsfw_filter)
     out_image = scale_to_target(extent, w, out_image, models)
+    if misc.refine_model:
+        upscale_model = w.load_upscale_model(misc.refine_model)
+        out_image = w.refine_image(upscale_model, out_image, extent.desired)
     w.send_image(out_image)
     return w
 
@@ -1227,6 +1234,9 @@ def refine_region(
     out_image = w.color_match(out_image, in_image, initial_mask, misc.color_match)
     out_image = w.nsfw_filter(out_image, sensitivity=misc.nsfw_filter)
     out_image = scale_to_target(extent, w, out_image, models)
+    if misc.refine_model:
+        upscale_model = w.load_upscale_model(misc.refine_model)
+        out_image = w.refine_image(upscale_model, out_image, extent.desired)
     if extent.target != inpaint.target_bounds.extent:
         out_image = w.crop_image(out_image, inpaint.target_bounds)
         in_mask = w.crop_mask(in_mask, inpaint.target_bounds)
@@ -1671,6 +1681,8 @@ def prepare(
             canvas, arch, ensure(style), perf, downscale=not is_live
         )
         downscale_all_control_images(i.conditioning, canvas, i.images.extent.desired)
+        if style.linked_refine_model:
+            i.upscale = UpscaleInput(style.linked_refine_model)
 
     elif kind is WorkflowKind.inpaint:
         assert isinstance(canvas, Image) and mask and inpaint and style
@@ -1696,6 +1708,8 @@ def prepare(
             canvas, arch, style, perf, downscale=False
         )
         downscale_all_control_images(i.conditioning, canvas.extent, i.images.extent.desired)
+        if style.linked_refine_model:
+            i.upscale = UpscaleInput(style.linked_refine_model)
 
     elif kind is WorkflowKind.refine_region:
         assert isinstance(canvas, Image) and mask and inpaint and style
@@ -1706,6 +1720,8 @@ def prepare(
         i.images.hires_mask = mask.to_image(canvas.extent)
         i.inpaint = InpaintParams.clamped(inpaint)
         downscale_all_control_images(i.conditioning, canvas.extent, i.images.extent.desired)
+        if style.linked_refine_model:
+            i.upscale = UpscaleInput(style.linked_refine_model)
 
     elif kind is WorkflowKind.upscale_tiled:
         assert isinstance(canvas, Image) and style
@@ -1772,7 +1788,13 @@ def create(i: WorkflowInput, models: ClientModels, comfy_mode=ComfyRunMode.serve
     """
     workflow = ComfyWorkflow(models.node_inputs, comfy_mode)
     layer_count = i.images.layer_count if i.images else 1
-    misc = MiscParams(i.batch_count, layer_count, i.color_match, i.nsfw_filter)
+    misc = MiscParams(
+        i.batch_count, layer_count, i.color_match, i.nsfw_filter,
+        refine_model=ensure(i.upscale).model
+        if i.kind in [WorkflowKind.generate, WorkflowKind.refine, WorkflowKind.refine_region]
+        and i.upscale
+        else "",
+    )
 
     if i.kind is WorkflowKind.generate:
         return generate(

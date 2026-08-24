@@ -99,6 +99,12 @@ class StyleSettings:
         _("Select an alternative style to use for for instruction-based editing"),
     )
 
+    linked_refine_model = Setting(
+        _("Linked Refine Model"),
+        "",
+        _("Upscaling model applied to generated images before display"),
+    )
+
     sampler = Setting(_("Sampler"), "Default - DPM++ 2M", _("The sampling strategy and scheduler"))
 
     sampler_steps = Setting(
@@ -143,6 +149,7 @@ class Style(QObject):
     self_attention_guidance: bool = StyleSettings.self_attention_guidance.default
     preferred_resolution: int = StyleSettings.preferred_resolution.default
     linked_edit_style: str = StyleSettings.linked_edit_style.default
+    linked_refine_model: str = StyleSettings.linked_refine_model.default
     sampler: str = StyleSettings.sampler.default
     scheduler: str = StyleSettings.scheduler.default
     sampler_steps: int = StyleSettings.sampler_steps.default
@@ -478,13 +485,8 @@ _comfy_schedulers = [
     "beta",
     "linear_quadratic",
     "kl_optimal",
-    "git",
-    "gits",
     "flux2",
-    "align_your_steps",
-    "ayss_res",
-    "res_multistep",
-    "ltxv",
+    "gits",
 ]
 
 _comfy_samplers = [
@@ -578,6 +580,8 @@ _sampler_map = {
     "iPNDM v": "ipndm_v",
     "DEIS": "deis",
     "DDPM": "ddpm",
+    "ER SDE": "er_sde",
+    "Gradien Estimation": "gradient_estimation",
 }
 _scheduler_map = {
     "DDIM": "ddim_uniform",
@@ -603,7 +607,6 @@ _scheduler_map = {
     "GITS": "gits",
     "DDPM": "ddpm",
     "Flux 2": "flux2",
-    "Align Your Steps": "align_your_steps",
 }
 _sampler_presets_stub = """// Custom sampler presets - add your own sampler presets here!
 // https://docs.interstice.cloud/samplers

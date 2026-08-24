@@ -264,6 +264,9 @@ class UpscaleWidget(QWidget):
                     elif file == UpscalerName.sharp.value:
                         name = f"Sharp ({file.removesuffix('.pth')})"
                         self.model_select.addItem(name, file)
+                    elif file == UpscalerName.refine.value:
+                        name = f"Refine ({file.removesuffix('.safetensors')})"
+                        self.model_select.addItem(name, file)
                     elif file in [UpscalerName.fast_2x.value, UpscalerName.fast_3x.value]:
                         pass
                     else:
