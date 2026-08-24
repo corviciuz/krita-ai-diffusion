@@ -301,6 +301,10 @@ class ComboBoxSetting(SettingWidget):
             self._enum_type = type(setting.default)
             self.set_items(self._enum_type)
 
+        self._combo.setMinimumContentsLength(28)
+        self._combo.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
+        )
         self._combo.setMinimumWidth(230)
         self._combo.activated.connect(self._change_value)
         self.set_widget(self._combo)
