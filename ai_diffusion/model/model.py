@@ -174,7 +174,11 @@ class DocumentModel(QObject, ObservableProperties):
         self._doc = document
         self._connection = connection
         self._layer: Layer | None = None
-        self.generate_seed()
+        if settings.startup_seed > 0:
+            self.seed = settings.startup_seed
+            self.fixed_seed = True
+        else:
+            self.generate_seed()
         self.jobs = JobQueue()
         self.regions = RootRegion(self)
         self.edit_regions = RootRegion(self)

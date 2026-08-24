@@ -52,6 +52,7 @@ from .server import ServerWidget
 from .settings_widgets import (
     ComboBoxSetting,
     FileListSetting,
+    SeedSetting,
     SettingsTab,
     SliderSetting,
     SpinBoxSetting,
@@ -724,6 +725,7 @@ class InterfaceSettings(SettingsTab):
         )
         self.add("show_steps", SwitchSetting(S._show_steps, parent=self))
         self.add("recent_styles_count", SpinBoxSetting(S._recent_styles_count, self, 0, 10))
+        self.add("startup_seed", SeedSetting(S._startup_seed, parent=self))
 
         self.add("tag_files", FileListSetting(S._tag_files, files=self._tag_files(), parent=self))
         tag_files = cast(FileListSetting, self._widgets["tag_files"])

@@ -390,6 +390,13 @@ class Settings(QObject):
         _("Number of most recently used styles to show at the top of the style list"),
     )
 
+    startup_seed: int
+    _startup_seed = Setting(
+        _("Fixed Seed on Startup"),
+        0,
+        _("Seed assigned to newly created documents, with fixed seed enabled. 0 = disabled."),
+    )
+
     recent_styles: list[str]
     _recent_styles = Setting(
         "Recent Styles",
