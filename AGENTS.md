@@ -60,6 +60,14 @@ Run tests with these priorities:
 4. *only after changing cloud client* (includes inference): `pytest tests/test_workflow.py --cloud`
 5. *only after changing installer* (slow tests): `pytest tests/test_server.py --test-install`
 
+### UI Tests
+
+There are no dedicated tests for UI. The following command can be used as a quick check
+that the UI code runs without errors:
+```
+python scripts/design.py --exit
+```
+
 ### Creating a worktree
 
 1. create a worktree of the `krita-ai-diffusion` repository (this repository)

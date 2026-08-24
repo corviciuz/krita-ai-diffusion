@@ -113,7 +113,6 @@ class LoraItem(QWidget):
 
         grey_text = self.palette()
         grey_text.setColor(QPalette.ColorRole.WindowText, QColor(theme.grey))
-
         self._drag_handle = _DragHandle(parent=self)
 
         self._advanced_button = ExpanderButton(parent=self)
