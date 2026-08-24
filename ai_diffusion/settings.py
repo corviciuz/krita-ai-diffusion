@@ -425,7 +425,7 @@ class Settings(QObject):
     history_format: ImageFileFormat
     _history_format = Setting(
         _("History Format"),
-        ImageFileFormat.webp,
+        ImageFileFormat.webp_lossless,
         _("File format for saving generated images in history"),
     )
 

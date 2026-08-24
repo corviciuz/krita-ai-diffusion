@@ -266,8 +266,10 @@ class UpscaleWidget(QWidget):
                         self.model_select.addItem(name, file)
                     elif file == UpscalerName.sharp_dejpeg.value:
                         name = f"Sharp/DeJPEG ({file.removesuffix('.safetensors')})"
+                        self.model_select.addItem(name, file)
                     elif file == UpscalerName.denoise_strong.value:
                         name = f"Denoise strong ({file.removesuffix('.pth')})"
+                        self.model_select.addItem(name, file)
                     elif file == UpscalerName.denoise_light.value:
                         name = f"Denoise light ({file.removesuffix('.pth')})"
                         self.model_select.addItem(name, file)
