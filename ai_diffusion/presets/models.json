@@ -54,7 +54,7 @@
       ]
     },
     {
-      "id": "upscaler-refine-all",
+      "id": "upscaler-sharp_dejpeg-all",
       "name": "AnimeSharp V4 (Sharp/DeJPEG)",
       "files": [
         {
@@ -377,7 +377,7 @@
   ],
   "upscale": [
     {
-      "id": "upscaler-denoise-all",
+      "id": "upscaler-denoise_strong-all",
       "name": "Archivist Soft (Denoise strong)",
       "files": [
         {
@@ -387,7 +387,7 @@
       ]
     },
     {
-      "id": "upscaler-denoise_gentle-all",
+      "id": "upscaler-denoise_light-all",
       "name": "AniToon RPLKSRS (Denoise light)",
       "files": [
         {
