@@ -265,7 +265,11 @@ class UpscaleWidget(QWidget):
                         name = f"Sharp ({file.removesuffix('.pth')})"
                         self.model_select.addItem(name, file)
                     elif file == UpscalerName.refine.value:
-                        name = f"Refine ({file.removesuffix('.safetensors')})"
+                        name = f"Sharp/DeJPEG ({file.removesuffix('.safetensors')})"
+                    elif file == UpscalerName.denoise.value:
+                        name = f"Denoise strong ({file.removesuffix('.pth')})"
+                    elif file == UpscalerName.denoise_gentle.value:
+                        name = f"Denoise light ({file.removesuffix('.pth')})"
                         self.model_select.addItem(name, file)
                     elif file in [UpscalerName.fast_2x.value, UpscalerName.fast_3x.value]:
                         pass
@@ -339,4 +343,7 @@ def _upscaler_order(filename: str):
         UpscalerName.fast_4x.value: 1,
         UpscalerName.quality.value: 2,
         UpscalerName.sharp.value: 3,
+        UpscalerName.refine.value: 4,
+        UpscalerName.denoise.value: 5,
+        UpscalerName.denoise_gentle.value: 6,
     }.get(filename, 99)

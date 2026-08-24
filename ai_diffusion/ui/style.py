@@ -1104,7 +1104,11 @@ class StylePresets(SettingsTab):
                 elif file == UpscalerName.sharp.value:
                     name = f"Sharp ({name})"
                 elif file == UpscalerName.refine.value:
-                    name = f"Refine ({name})"
+                    name = f"Sharp/DeJPEG ({name})"
+                elif file == UpscalerName.denoise.value:
+                    name = f"Denoise ({name})"
+                elif file == UpscalerName.denoise_gentle.value:
+                    name = f"Denoise gentle ({name})"
                 refine_models.append((name, file))
         self._refine_model.set_items(refine_models)
 

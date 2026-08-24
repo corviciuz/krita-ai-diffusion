@@ -298,6 +298,8 @@ class UpscalerName(Enum):
     fast_3x = "OmniSR_X3_DIV2K.safetensors"
     fast_4x = "OmniSR_X4_DIV2K.safetensors"
     refine = "2x-AnimeSharpV4_Fast_RCAN_PU.safetensors"
+    denoise = "1x-Archivist_Soft.pth"
+    denoise_gentle = "2x_AniToon_RPLKSRS_242500.pth"
 
     @staticmethod
     def fast_x(x: int):
