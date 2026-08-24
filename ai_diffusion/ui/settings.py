@@ -753,6 +753,9 @@ class InterfaceSettings(SettingsTab):
         self.add("new_seed_after_apply", SwitchSetting(S._new_seed_after_apply, parent=self))
         self.add("save_image_format", ComboBoxSetting(S._save_image_format, parent=self))
         self.add("save_image_metadata", SwitchSetting(S._save_image_metadata, parent=self))
+        self.add(
+            "show_full_prompt_tooltip", SwitchSetting(S._show_full_prompt_tooltip, parent=self)
+        )
         self.add("debug_dump_workflow", SwitchSetting(S._debug_dump_workflow, parent=self))
 
         languages = [(lang.name, lang.id) for lang in Localization.available]

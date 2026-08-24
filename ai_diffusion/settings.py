@@ -277,6 +277,16 @@ class Settings(QObject):
         _("When saving generated images from thumbnails, include metadata in the PNG"),
     )
 
+    show_full_prompt_tooltip: bool
+    _show_full_prompt_tooltip = Setting(
+        _("Show Full Prompt in Tooltip"),
+        False,
+        _(
+            "Show evaluated and final prompts in the result preview tooltip. "
+            "They are always included when copying job info to the clipboard."
+        ),
+    )
+
     save_image_format: ImageFileFormat
     _save_image_format = Setting(
         _("Save Image Format"),

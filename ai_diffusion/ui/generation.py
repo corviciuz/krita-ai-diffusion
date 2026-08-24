@@ -132,6 +132,8 @@ class HistoryWidget(QListWidget):
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_context_menu)
 
+        settings.changed.connect(self._refresh_tooltips)
+
     @property
     def model_(self):
         return self._model
@@ -229,6 +231,10 @@ class HistoryWidget(QListWidget):
         for key, value in params.metadata.items():
             if key not in self._job_info_translations:
                 continue
+            if not settings.show_full_prompt_tooltip and (
+                key.endswith("_eval") or key.endswith("_final")
+            ):
+                continue
             if key == "style" and style:
                 value = style.name
             if isinstance(value, list) and len(value) == 0:
@@ -250,6 +256,19 @@ class HistoryWidget(QListWidget):
             strings.append(s)
         strings.append(_("Seed") + f": {params.seed}")
         return "\n".join(flatten(strings))
+
+    def _refresh_tooltips(self, name: str, _value: object):
+        if name != "show_full_prompt_tooltip":
+            return
+        for i in range(self.count()):
+            item = self.item(i)
+            if item.flags() & Qt.ItemFlag.NoItemFlags:
+                continue
+            job_id = item.data(Qt.ItemDataRole.UserRole)
+            if not isinstance(job_id, str):
+                continue
+            if job := self._model.jobs.find(job_id):
+                item.setData(Qt.ItemDataRole.ToolTipRole, self._job_info(job.params))
 
     def remove(self, job: Job):
         self._remove_items(ensure(job.id))
