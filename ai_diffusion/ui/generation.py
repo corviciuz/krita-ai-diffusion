@@ -523,15 +523,6 @@ class HistoryWidget(QListWidget):
             if style:
                 data["style"] = f"{style.name} ({style.filename})"
             data["seed"] = job.params.seed
-            for v in data.get("loras", []):
-                if isinstance(v, dict):
-                    triggers = ""
-                    if file := root.files.loras.find(v.get("name", "")):
-                        triggers = file.meta("lora_triggers", "")
-                    items = list(v.items())
-                    items.insert(1, ("trigger", triggers))
-                    v.clear()
-                    v.update(items)
             text = json.dumps(data, indent=2)
             clipboard.setText(text)
 

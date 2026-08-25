@@ -330,7 +330,18 @@ class DocumentModel(QObject, ObservableProperties):
         job_params.ref_layers = ref_layers
         job_params.is_layered = arch is Arch.qwen_l
         job_params.metadata.update(prompt_meta)
-        job_params.metadata["loras"] = [{"name": l.name, "weight": l.strength} for l in loras]
+        job_params.metadata["loras"] = [
+            {
+                "name": l.name,
+                "trigger": (
+                    file.meta("lora_triggers", "")
+                    if (file := FileLibrary.instance().loras.find(l.name))
+                    else ""
+                ),
+                "weight": l.strength,
+            }
+            for l in loras
+        ]
         job_params.metadata["strength"] = strength
         return input, job_params, original_conditioning
 
@@ -577,7 +588,16 @@ class DocumentModel(QObject, ObservableProperties):
                 job_params.set_style(self.style, custom_input.models.checkpoint)
                 metadata.update(prepared.metadata)
                 metadata["loras"] = [
-                    {"name": l.name, "weight": l.strength} for l in custom_input.models.loras
+                    {
+                        "name": l.name,
+                        "trigger": (
+                            file.meta("lora_triggers", "")
+                            if (file := FileLibrary.instance().loras.find(l.name))
+                            else ""
+                        ),
+                        "weight": l.strength,
+                    }
+                    for l in custom_input.models.loras
                 ]
 
             input = WorkflowInput(
