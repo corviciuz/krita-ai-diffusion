@@ -1181,10 +1181,10 @@ class SettingsDialog(QDialog):
         type(self)._instance = self
 
         self.setWindowTitle(_("Configure Image Diffusion"))
-        self.setMinimumSize(QSize(960, 480))
+        self.setMinimumSize(QSize(1152, 480))
         if screen := QGuiApplication.screenAt(QCursor.pos()):
             size = screen.availableSize()
-            min_w = min(size.width(), QFontMetrics(self.font()).horizontalAdvance("M") * 100)
+            min_w = min(size.width(), QFontMetrics(self.font()).horizontalAdvance("M") * 120)
             self.resize(QSize(min_w, int(size.height() * 0.8)))
 
         layout = QHBoxLayout()

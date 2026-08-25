@@ -300,7 +300,6 @@ class Settings(QObject):
         False,
         _(
             "Show evaluated and final prompts in the result preview tooltip. "
-            "They are always included when copying job info to the clipboard."
         ),
     )
 
