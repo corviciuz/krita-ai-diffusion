@@ -378,6 +378,7 @@ class ComboBoxSetting(SettingWidget):
                 self._combo.addItem(e.value, e.name)
         else:
             for name in items:
+                disabled = isinstance(name, tuple) and name[-1] is False
                 if isinstance(name, str):
                     self._combo.addItem(name, name)
                 elif isinstance(name, Enum):
@@ -387,6 +388,10 @@ class ComboBoxSetting(SettingWidget):
                     self._combo.addItem(name[0], name[1])
                 elif len(name) == 3:
                     self._combo.addItem(name[2], name[0], name[1])
+                if disabled:
+                    item = self._combo.count() - 1
+                    model_item = self._combo.model().item(item)
+                    model_item.setEnabled(False)
         self._suppress_change = False
 
     def _change_value(self):

@@ -853,6 +853,18 @@ class PerformanceSettings(SettingsTab):
         self._history_storage.value_changed.connect(self.write)
         self._layout.addWidget(self._history_storage)
 
+        self._history_format = ComboBoxSetting(Settings._history_format, parent=self)
+        self._history_format.value_changed.connect(self._change_history_format)
+        self._history_format.value_changed.connect(self.write)
+        self._layout.addWidget(self._history_format)
+
+        self._history_quality = SliderSetting(
+            Settings._history_quality, self, minimum=1, maximum=100, suffix="%"
+        )
+        self._history_quality.setEnabled(False)
+        self._history_quality.value_changed.connect(self.write)
+        self._layout.addWidget(self._history_quality)
+
         add_header(self._layout, Settings._performance_preset)
         self._device_info = QLabel(self)
         self._device_info.setStyleSheet("font-style:italic")
@@ -928,6 +940,9 @@ class PerformanceSettings(SettingsTab):
         self._history_size.update_usage(root.active_model.jobs.memory_usage)
         self._history_storage.value = settings.history_storage
         self._history_storage.update_usage(root.get_active_model_used_storage() / (1024**2))
+        self._history_format.value = settings.history_format
+        self._change_history_format()
+        self._history_quality.value = settings.history_quality
         self._multi_threading.value = settings.multi_threading
         self._batch_size.value = settings.batch_size
         self._performance_preset.setCurrentIndex(
@@ -939,9 +954,15 @@ class PerformanceSettings(SettingsTab):
         self._dynamic_caching.value = settings.dynamic_caching
         self.update_client_info()
 
+    def _change_history_format(self):
+        fmt = self._history_format.value
+        self._history_quality.setEnabled(fmt.is_lossy)
+
     def _write(self):
         settings.history_size = self._history_size.value
         settings.history_storage = self._history_storage.value
+        settings.history_format = self._history_format.value
+        settings.history_quality = int(self._history_quality.value)
         settings.multi_threading = self._multi_threading.value
         settings.batch_size = int(self._batch_size.value)
         settings.resolution_multiplier = self._resolution_multiplier.value

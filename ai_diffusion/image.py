@@ -393,14 +393,29 @@ class Image:
         return Image.from_bytes(bytes)
 
     @staticmethod
+    def _from_avif_bytes(raw: bytes):
+        import io
+
+        import pillow_avif  # noqa: F401  # registers AVIF codec in PIL
+        from PIL import Image as PILImage
+
+        with PILImage.open(io.BytesIO(raw)) as pil_image:
+            return Image.from_pil(pil_image.convert("RGBA"))
+
+    @staticmethod
     def from_bytes(data: QBuffer | QByteArray | memoryview | bytes, format: str | None = None):
         if isinstance(data, QBuffer):
+            raw = bytes(data.data())
             buffer = data
         else:
-            if not isinstance(data, QByteArray):
-                data = QByteArray(bytearray(data))
-            buffer = QBuffer(data)
+            raw = bytes(data)
+            byte_array = QByteArray(bytearray(raw))
+            buffer = QBuffer(byte_array)
             buffer.open(QBuffer.OpenModeFlag.ReadOnly)
+        # Krita's Qt build has no AVIF plugin in QImageReader - decode via PIL instead.
+        # ISO-BMFF container: every file starts with an "ftyp" box.
+        if raw[4:8] == b"ftyp":
+            return Image._from_avif_bytes(raw)
         if format:
             loader = QImageReader(buffer, format.encode("utf-8"))
         else:
@@ -415,9 +430,11 @@ class Image:
     @staticmethod
     def from_pil(pil_image):
         assert pil_image.mode == "RGBA"
+        data = pil_image.tobytes()
+        # QImage does not own external buffers - copy() detaches before the temporary is freed
         qimage = QImage(
-            pil_image.tobytes(), pil_image.width, pil_image.height, QImage.Format.Format_RGBA8888
-        )
+            data, pil_image.width, pil_image.height, QImage.Format.Format_RGBA8888
+        ).copy()
         return Image(qimage)
 
     @staticmethod
@@ -619,8 +636,15 @@ class Image:
         # Compression takes time for large images and blocks the UI, might be worth to thread.
         if not qt_supports_webp(self.extent):
             format = format.no_webp_fallback
-        format_str = format.extension
         quality = override_quality if override_quality is not None else format.quality
+        if format is ImageFileFormat.avif:
+            # Krita's Qt build can't encode AVIF - route through PIL.
+            import pillow_avif  # noqa: F401  # registers AVIF codec in PIL
+
+            pil_image = self.to_pil()
+            pil_image.save(buffer, "AVIF", quality=quality)
+            return
+        format_str = format.extension
         writer = QImageWriter(buffer, QByteArray(format_str.encode("utf-8")))
         writer.setQuality(quality)
         result = writer.write(self._qimage)
@@ -888,14 +912,14 @@ class ImageCollection:
     def size(self):
         return sum(i.size for i in self)
 
-    def to_bytes(self, format=ImageFileFormat.webp):
+    def to_bytes(self, format=ImageFileFormat.webp, quality: int | None = None):
         offsets = []
         data = QByteArray()
         result = QBuffer(data)
         result.open(QBuffer.OpenModeFlag.WriteOnly)
         for img in self:
             offsets.append(result.pos())
-            img.write(result, format)
+            img.write(result, format, quality)
         result.close()
         return data, offsets
 

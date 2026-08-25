@@ -77,6 +77,7 @@ class ImageFileFormat(Enum):
     png_small = "PNG"  # slow, smaller files
     webp = "WebP"
     webp_lossless = "WebP (lossless)"
+    avif = "AVIF"
     jpeg = "JPEG"
 
     @staticmethod
@@ -86,6 +87,8 @@ class ImageFileFormat(Enum):
             return ImageFileFormat.png_small
         if extension == ".webp":
             return ImageFileFormat.webp
+        if extension == ".avif":
+            return ImageFileFormat.avif
         if extension in {".jpg", ".jpeg"}:
             return ImageFileFormat.jpeg
         raise ValueError(f"Unsupported image extension: {extension}")
@@ -96,6 +99,8 @@ class ImageFileFormat(Enum):
             return "png"
         elif self in [ImageFileFormat.webp, ImageFileFormat.webp_lossless]:
             return "webp"
+        elif self is ImageFileFormat.avif:
+            return "avif"
         else:
             return "jpg"
 
@@ -109,16 +114,28 @@ class ImageFileFormat(Enum):
             return 80
         elif self in [ImageFileFormat.webp_lossless]:
             return 100
+        elif self is ImageFileFormat.avif:
+            return 80
         elif self in [ImageFileFormat.jpeg]:
             return 85
         else:
             return 85
 
     @property
+    def is_lossy(self):
+        return self not in [
+            ImageFileFormat.png,
+            ImageFileFormat.png_small,
+            ImageFileFormat.webp_lossless,
+        ]
+
+    @property
     def no_webp_fallback(self):
         if self is ImageFileFormat.webp_lossless:
             return ImageFileFormat.png
         if self is ImageFileFormat.webp:
+            return ImageFileFormat.jpeg
+        if self is ImageFileFormat.avif:
             return ImageFileFormat.jpeg
         return self
 
@@ -308,6 +325,13 @@ class Settings(QObject):
         "Quality for JPEG encoding (0-100)",
     )
 
+    save_image_quality_avif: int
+    _save_image_quality_avif = Setting(
+        "Save Image Quality (AVIF)",
+        80,
+        "Quality for AVIF encoding (0-100)",
+    )
+
     save_image_file_name_format: str
     _save_image_file_name_format = Setting(
         _("Save Image File Name Template"),
@@ -427,6 +451,13 @@ class Settings(QObject):
         _("History Format"),
         ImageFileFormat.webp_lossless,
         _("File format for saving generated images in history"),
+    )
+
+    history_quality: int
+    _history_quality = Setting(
+        _("History Quality"),
+        80,
+        _("Compression quality for lossy history formats (AVIF, JPEG)"),
     )
 
     multi_threading: bool

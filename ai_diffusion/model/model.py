@@ -1690,6 +1690,8 @@ def _save_job_result(model: DocumentModel, job: Job | None, index: int):
                 quality = settings.save_image_quality_webp
             elif settings.save_image_format is ImageFileFormat.jpeg:
                 quality = settings.save_image_quality_jpeg
+            elif settings.save_image_format is ImageFileFormat.avif:
+                quality = settings.save_image_quality_avif
 
             base_image.save(path, settings.save_image_format, quality)
             xmp = create_prompt_xmp(metadata_text)
@@ -1702,6 +1704,8 @@ def _save_job_result(model: DocumentModel, job: Job | None, index: int):
             quality = settings.save_image_quality_webp
         elif settings.save_image_format is ImageFileFormat.jpeg:
             quality = settings.save_image_quality_jpeg
+        elif settings.save_image_format is ImageFileFormat.avif:
+            quality = settings.save_image_quality_avif
 
         base_image.save(path, settings.save_image_format, quality)
 

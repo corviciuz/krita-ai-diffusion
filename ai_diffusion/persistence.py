@@ -21,7 +21,7 @@ from .model.jobs import Job, JobKind, JobParams, JobQueue
 from .model.model import DocumentModel, InpaintContext
 from .model.properties import deserialize, serialize
 from .model.region import Region, RootRegion
-from .settings import settings
+from .settings import ImageFileFormat, settings
 from .style import Style, Styles
 from .util import client_logger as log
 from .util import encode_json
@@ -184,7 +184,15 @@ class ModelSync:
 
         for result in state.get("history", []):
             item = _HistoryResult.from_dict(result)
-            if images_bytes := _find_annotation(model.document, f"result{item.slot}.webp"):
+            images_bytes = next(
+                (
+                    data
+                    for ext in (fmt.extension for fmt in ImageFileFormat)
+                    if (data := model.document.find_annotation(f"result{item.slot}.{ext}"))
+                ),
+                None,
+            )
+            if images_bytes:
                 job = model.jobs.add_job(Job(item.id, item.kind, item.params))
                 job.in_use = item.in_use
                 results = ImageCollection.from_bytes(images_bytes, item.offsets)
@@ -242,15 +250,19 @@ class ModelSync:
     ):
         if prev_task is not None:
             await prev_task
+        fmt = settings.history_format
+        quality = settings.history_quality if fmt.is_lossy else None
+
+        def encode():
+            return job.results.to_bytes(fmt, quality)
+
         if settings.multi_threading:
             loop = asyncio.get_running_loop()
-            image_data, image_offsets = await loop.run_in_executor(
-                None, job.results.to_bytes, settings.history_format
-            )
+            image_data, image_offsets = await loop.run_in_executor(None, encode)
         else:
-            image_data, image_offsets = job.results.to_bytes(settings.history_format)
+            image_data, image_offsets = encode()
 
-        self._model.document.annotate(f"result{slot}.webp", image_data)
+        self._model.document.annotate(f"result{slot}.{fmt.extension}", image_data)
         self._history.append(
             _HistoryResult(job.id or "", slot, image_offsets, job.params, job.kind, job.in_use)
         )
@@ -262,15 +274,21 @@ class ModelSync:
         index = next((i for i, h in enumerate(self._history) if h.id == job.id), None)
         if index is not None:
             item = self._history.pop(index)
-            self._model.document.remove_annotation(f"result{item.slot}.webp")
+            for ext in (fmt.extension for fmt in ImageFileFormat):
+                self._model.document.remove_annotation(f"result{item.slot}.{ext}")
             self._memory_used.pop(item.slot, None)
         self._save()
 
     def _remove_image(self, item: JobQueue.Item):
         if history := next((h for h in self._history if h.id == item.job), None):
             if job := self._model.jobs.find(item.job):
-                image_data, history.offsets = job.results.to_bytes()
-                self._model.document.annotate(f"result{history.slot}.webp", image_data)
+                image_data, history.offsets = job.results.to_bytes(
+                    settings.history_format,
+                    settings.history_quality if settings.history_format.is_lossy else None,
+                )
+                self._model.document.annotate(
+                    f"result{history.slot}.{settings.history_format.extension}", image_data
+                )
                 self._memory_used[history.slot] = image_data.size()
                 self._save()
 
@@ -292,9 +310,10 @@ class ModelSync:
         limit = settings.history_storage * 1024 * 1024
         used = self.memory_used
         while used > limit and len(self._history) > 0:
-            slot = self._history.pop(0).slot
-            self._model.document.remove_annotation(f"result{slot}.webp")
-            used -= self._memory_used.pop(slot, 0)
+            item = self._history.pop(0)
+            for ext in (fmt.extension for fmt in ImageFileFormat):
+                self._model.document.remove_annotation(f"result{item.slot}.{ext}")
+            used -= self._memory_used.pop(item.slot, 0)
 
 
 def _serialize(obj: QObject):
