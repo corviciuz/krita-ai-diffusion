@@ -417,6 +417,7 @@ class LoraList(QWidget):
         self._add_button.setMinimumWidth(100)
         self._add_button.clicked.connect(self._add_item)
         self._add_button.pressed.connect(self._start_add_hold_timer)
+        self._add_button.released.connect(self._stop_add_hold_timer)
         header_layout.addWidget(self._add_button, 1)
 
         self._upload_button = QPushButton(icon("upload"), "  " + _("Upload"), self)
@@ -481,6 +482,10 @@ class LoraList(QWidget):
             self._add_hold_timer.setInterval(400)
             self._add_hold_timer.timeout.connect(self._show_lora_picker)
         self._add_hold_timer.start()
+
+    def _stop_add_hold_timer(self):
+        if hasattr(self, "_add_hold_timer"):
+            self._add_hold_timer.stop()
 
     def _show_lora_picker(self):
         loras = [f for f in root.files.loras if f.source is not FileSource.unavailable]
