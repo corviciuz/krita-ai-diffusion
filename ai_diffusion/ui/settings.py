@@ -759,6 +759,7 @@ class InterfaceSettings(SettingsTab):
             "show_full_prompt_tooltip", SwitchSetting(S._show_full_prompt_tooltip, parent=self)
         )
         self.add("debug_dump_workflow", SwitchSetting(S._debug_dump_workflow, parent=self))
+        self.add("show_generation_time", SwitchSetting(S._show_generation_time, parent=self))
 
         languages = [(lang.name, lang.id) for lang in Localization.available]
         self._widgets["language"].set_items(languages)

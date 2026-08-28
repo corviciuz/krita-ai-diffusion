@@ -710,6 +710,7 @@ class DocumentModel(QObject, ObservableProperties):
         elif message.event is ClientEvent.finished:
             if message.error:  # successful jobs may have encountered some warnings
                 self.report_error(Error.from_string(message.error, ErrorKind.warning))
+            job.generation_time = message.generation_time
             if message.images:
                 self.jobs.set_results(job, message.images)
             if job.kind is JobKind.control_layer:

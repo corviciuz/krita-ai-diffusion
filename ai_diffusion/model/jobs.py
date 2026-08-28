@@ -133,6 +133,7 @@ class Job:
     timestamp: datetime
     results: ImageCollection
     in_use: dict[int, bool]
+    generation_time: float | None
 
     def __init__(self, id: str | None, kind: JobKind, params: JobParams):
         self.id = id
@@ -141,6 +142,7 @@ class Job:
         self.timestamp = datetime.now(timezone.utc)
         self.results = ImageCollection()
         self.in_use = {}
+        self.generation_time = None
 
     def result_was_used(self, index: int):
         return self.in_use.get(index, False)

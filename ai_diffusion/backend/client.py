@@ -78,6 +78,7 @@ class ClientMessage(NamedTuple):
     images: ImageCollection | None = None
     result: ClientOutput | None = None
     error: str | None = None
+    generation_time: float | None = None
 
 
 class User(QObject, ObservableProperties):

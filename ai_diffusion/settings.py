@@ -303,6 +303,13 @@ class Settings(QObject):
         ),
     )
 
+    show_generation_time: bool
+    _show_generation_time = Setting(
+        _("Show Generation Time"),
+        False,
+        _("Display the generation time below generated image previews."),
+    )
+
     save_image_format: ImageFileFormat
     _save_image_format = Setting(
         _("Save Image Format"),

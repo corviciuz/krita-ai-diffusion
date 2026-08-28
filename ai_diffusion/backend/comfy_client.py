@@ -8,7 +8,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from itertools import product
-from time import time
+from time import monotonic, time
 from typing import Any
 
 from .. import platform_tools, util
@@ -134,6 +134,16 @@ class Progress:
         node_part = self._nodes / (self._info.node_count + 1)
         sample_part = self._samples / max(self._info.sample_count, 1)
         return 0.2 * node_part + 0.8 * sample_part
+
+
+def _generation_time(
+    start_timestamp: Any, end_timestamp: Any, local_start: float | None
+) -> float | None:
+    if isinstance(start_timestamp, (int, float)) and isinstance(end_timestamp, (int, float)):
+        return max(0.0, (end_timestamp - start_timestamp) / 1000)
+    if local_start is not None:
+        return max(0.0, monotonic() - local_start)
+    return None
 
 
 class ComfyClient(Client):
@@ -352,6 +362,9 @@ class ComfyClient(Client):
         images = ImageCollection()
         last_images = ImageCollection()
         result = None
+        execution_start_timestamp: int | float | None = None
+        execution_end_timestamp: int | float | None = None
+        local_execution_start: float | None = None
 
         async for msg in websocket:
             if isinstance(msg, bytes):
@@ -372,6 +385,9 @@ class ComfyClient(Client):
                         progress = Progress(self._active_job)
                         images = ImageCollection()
                         result = None
+                        execution_start_timestamp = msg["data"].get("timestamp")
+                        execution_end_timestamp = None
+                        local_execution_start = monotonic()
 
                 if msg["type"] == "execution_interrupted":
                     if job := await self._get_active_job(msg["data"]["prompt_id"]):
@@ -391,9 +407,22 @@ class ComfyClient(Client):
                             await self._report(ClientEvent.error, job_id, error=err)
                         else:
                             last_images = images
-                            await self._report(
-                                ClientEvent.finished, job_id, 1, images=images, result=result
+                            generation_time = _generation_time(
+                                execution_start_timestamp,
+                                execution_end_timestamp or msg["data"].get("timestamp"),
+                                local_execution_start,
                             )
+                            await self._report(
+                                ClientEvent.finished,
+                                job_id,
+                                1,
+                                images=images,
+                                result=result,
+                                generation_time=generation_time,
+                            )
+                        execution_start_timestamp = None
+                        execution_end_timestamp = None
+                        local_execution_start = None
 
                 elif msg["type"] in ("execution_cached", "executing", "progress"):
                     if self._active_job is not None and progress is not None:
@@ -416,6 +445,9 @@ class ComfyClient(Client):
                         pose_json = _extract_pose_json(msg)
                         if pose_json is not None:
                             result = pose_json
+
+                if msg["type"] == "execution_success":
+                    execution_end_timestamp = msg["data"].get("timestamp")
 
                 if msg["type"] == "execution_error":
                     if job := await self._get_active_job(msg["data"]["prompt_id"]):

@@ -194,7 +194,16 @@ class HistoryWidget(QListWidget):
         item.setData(Qt.ItemDataRole.UserRole, job.id)
         item.setData(Qt.ItemDataRole.UserRole + 1, index)
         item.setData(Qt.ItemDataRole.ToolTipRole, self._job_info(job.params))
+        item.setText(self._generation_time_text(job))
+        item.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
         self.addItem(item)
+
+    def _generation_time_text(self, job: Job):
+        if settings.show_generation_time and job.generation_time is not None:
+            return _(
+                "{time}", time=f"{job.generation_time:.2f} s"
+            )
+        return ""
 
     _job_info_translations: ClassVar[dict[str, str]] = {
         "prompt": _("Prompt"),
@@ -258,11 +267,20 @@ class HistoryWidget(QListWidget):
         return "\n".join(flatten(strings))
 
     def _refresh_tooltips(self, name: str, _value: object):
+        if name == "show_generation_time":
+            for i in range(self.count()):
+                item = self.item(i)
+                if item is None or self._is_header(item):
+                    continue
+                job_id, _ = self.item_info(item)
+                if job := self._model.jobs.find(job_id):
+                    item.setText(self._generation_time_text(job))
+            return
         if name != "show_full_prompt_tooltip":
             return
         for i in range(self.count()):
             item = self.item(i)
-            if item.flags() & Qt.ItemFlag.NoItemFlags:
+            if item is None or self._is_header(item):
                 continue
             job_id = item.data(Qt.ItemDataRole.UserRole)
             if not isinstance(job_id, str):
@@ -305,7 +323,7 @@ class HistoryWidget(QListWidget):
         for i in range(self.count()):
             item = self.item(i)
             next_item = self.item(i + 1)
-            if item and item.text() != "" and next_item and next_item.text() != "":
+            if item and self._is_header(item) and next_item and self._is_header(next_item):
                 self.takeItem(i)
 
     def update_selection(self):
@@ -395,7 +413,7 @@ class HistoryWidget(QListWidget):
         return None
 
     def handle_preview_click(self, item: QListWidgetItem):
-        if item.text() != "" and item.text() != "<no prompt>":
+        if self._is_header(item) and item.text() != "" and item.text() != "<no prompt>":
             if clipboard := QGuiApplication.clipboard():
                 prompt = item.data(Qt.ItemDataRole.ToolTipRole)
                 clipboard.setText(prompt)
@@ -433,6 +451,10 @@ class HistoryWidget(QListWidget):
     def _find(self, id: JobQueue.Item):
         items = (ensure(self.item(i)) for i in range(self.count()))
         return next((item for item in items if self._item_data(item) == id), None)
+
+    @staticmethod
+    def _is_header(item: QListWidgetItem):
+        return item.data(Qt.ItemDataRole.UserRole + 1) is None
 
     def _item_data(self, item: QListWidgetItem):
         return JobQueue.Item(

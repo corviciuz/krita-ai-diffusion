@@ -105,6 +105,7 @@ class _HistoryResult:
     params: JobParams
     kind: JobKind = JobKind.diffusion
     in_use: dict[int, bool] = field(default_factory=dict)
+    generation_time: float | None = None
 
     @staticmethod
     def from_dict(data: dict[str, Any]):
@@ -195,6 +196,7 @@ class ModelSync:
             if images_bytes:
                 job = model.jobs.add_job(Job(item.id, item.kind, item.params))
                 job.in_use = item.in_use
+                job.generation_time = item.generation_time
                 results = ImageCollection.from_bytes(images_bytes, item.offsets)
                 model.jobs.set_results(job, results)
                 model.jobs.notify_finished(job)
@@ -264,7 +266,15 @@ class ModelSync:
 
         self._model.document.annotate(f"result{slot}.{fmt.extension}", image_data)
         self._history.append(
-            _HistoryResult(job.id or "", slot, image_offsets, job.params, job.kind, job.in_use)
+            _HistoryResult(
+                job.id or "",
+                slot,
+                image_offsets,
+                job.params,
+                job.kind,
+                job.in_use,
+                job.generation_time,
+            )
         )
         self._memory_used[slot] = image_data.size()
         self._prune()
