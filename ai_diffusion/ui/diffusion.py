@@ -304,13 +304,20 @@ class ImageDiffusionWidget(DockWidget):
 
     def canvasChanged(self, canvas: krita.Canvas):
         if canvas is not None and canvas.view() is not None:
-            root.start_backend(self.update_content)
+            root.start_backend(self._backend_state_changed)
             eventloop.run(self._update_active_document())
 
     async def _update_active_document(self):
         if not KritaDocument.active():
             await asyncio.sleep(0.1)  # wait until fully opened/initialized
-        root.start_backend(self.update_content)
+        root.start_backend(self._backend_state_changed)
+        self.update_content()
+
+    def _backend_state_changed(self):
+        eventloop.run(self._update_content_later())
+
+    async def _update_content_later(self):
+        await asyncio.sleep(0.1)
         self.update_content()
 
     def register_model(self, model: DocumentModel):
