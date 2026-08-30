@@ -10,10 +10,10 @@ from typing import Any, NamedTuple
 
 # Version identifier for all the resources defined here. This is used as the server version.
 # It usually follows the plugin version, but not all new plugin versions also require a server update.
-version = "1.53.1"
+version = "1.53.2"
 
 comfy_url = "https://github.com/comfyanonymous/ComfyUI"
-comfy_version = "4da9e2dbead52fc1e68beae33fe3d7ad63b63241"
+comfy_version = "8a33128f2f8c5585c57486c07de481241e70a39c"
 
 
 class CustomNode(NamedTuple):
