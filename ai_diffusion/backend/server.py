@@ -438,14 +438,17 @@ class Server:
                 + f" {upgrade_comfy_dir}"
             )
 
-    async def start(self, port: int | None = None):
+    async def start(
+        self, port: int | None = None, state_changed: Callable[[], None] | None = None
+    ):
         last_line = ""
 
         try:
             assert self.state in [ServerState.stopped, ServerState.missing_resources]
             assert self._python_cmd
-            await self._log_python_version()
             self.state = ServerState.starting
+            if state_changed is not None:
+                state_changed()
 
             args = ["-su", "main.py"]
             env = {}
