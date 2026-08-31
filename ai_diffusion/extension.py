@@ -3,6 +3,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from krita import DockWidgetFactory, DockWidgetFactoryBase, Extension, Krita, Window  # type: ignore
+from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QAction
 
 from . import __version__, eventloop
@@ -48,11 +49,20 @@ class AIToolsExtension(Extension):
 
         notifier = Krita.instance().notifier()
         notifier.setActive(True)
+        notifier.imageCreated.connect(self._image_created)
         notifier.viewCreated.connect(self._canvas_created)
         notifier.applicationClosing.connect(self.shutdown)  # type: ignore
 
     def setup(self):
         root.start_backend(self._settings_dialog.connection.update_ui)
+
+    def _image_created(self, *_):
+        QTimer.singleShot(0, self._start_backend_for_pending_document)
+
+    def _start_backend_for_pending_document(self):
+        root.start_backend(
+            self._settings_dialog.connection.update_ui, allow_pending_document=True
+        )
 
     def _canvas_created(self, *_):
         root.start_backend(self._settings_dialog.connection.update_ui)

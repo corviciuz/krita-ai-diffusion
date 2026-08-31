@@ -675,6 +675,7 @@ class SamplerWidget(QWidget):
         expander = ExpanderButton(title, self)
 
         self._preset = QComboBox(self)
+        self._preset_names = SamplerPresets.instance().names()
         self._preset.setMinimumWidth(230)
         self._preset.currentIndexChanged.connect(self._select_preset)
 
@@ -684,8 +685,12 @@ class SamplerWidget(QWidget):
             _("Override the noise schedule (scheduler) of the selected sampler preset")
         )
         self._scheduler.currentIndexChanged.connect(self.notify_changed)
-        root.connection.models_changed.connect(self._update_options)
-        self._update_options()
+        self._server_samplers: list[str] = []
+        self._server_schedulers: list[str] = []
+        self._combo_sampler_options: tuple[str, ...] = ()
+        self._combo_scheduler_options: tuple[str, ...] = ()
+        root.connection.models_changed.connect(self._server_options_changed)
+        self._server_options_changed()
 
         self._lock_params = SwitchWidget(self)
         self._lock_params.setToolTip(_("Keep current steps and CFG when switching the sampler"))
@@ -749,19 +754,22 @@ class SamplerWidget(QWidget):
         self.notify_changed()
 
     def _update_options(self):
-        presets = SamplerPresets.instance().names()
-        samplers: list[str] = []
-        schedulers = scheduler_names()
-        if client := root.connection.client_if_connected:
-            nodes = client.models.node_inputs
-            samplers = nodes.options("KSampler", "sampler_name")
-            server_schedulers = nodes.options("KSampler", "scheduler")
-            if server_schedulers:
-                schedulers = server_schedulers
+        presets = self._preset_names
+        samplers = self._server_samplers
+        schedulers = self._server_schedulers or scheduler_names()
 
         sampler_options = presets + sorted(
             {name for name in samplers if name not in presets}, key=str.casefold
         )
+        scheduler_options = sorted(set(schedulers), key=str.casefold)
+        if (
+            tuple(sampler_options) == self._combo_sampler_options
+            and tuple(scheduler_options) == self._combo_scheduler_options
+        ):
+            return
+
+        self._combo_sampler_options = tuple(sampler_options)
+        self._combo_scheduler_options = tuple(scheduler_options)
         current_sampler = self._preset.currentText()
         current_scheduler = self._scheduler.currentData()
         with SignalBlocker(self._preset), SignalBlocker(self._scheduler):
@@ -772,10 +780,20 @@ class SamplerWidget(QWidget):
 
             self._scheduler.clear()
             self._scheduler.addItem(_("Preset Default"), "")
-            for name in sorted(set(schedulers), key=str.casefold):
+            for name in scheduler_options:
                 self._scheduler.addItem(name, name)
             index = self._scheduler.findData(current_scheduler)
             self._scheduler.setCurrentIndex(max(index, 0))
+
+    def _server_options_changed(self):
+        self._server_samplers = []
+        self._server_schedulers = []
+        if client := root.connection.client_if_connected:
+            nodes = client.models.node_inputs
+            self._server_samplers = nodes.options("KSampler", "sampler_name")
+            self._server_schedulers = nodes.options("KSampler", "scheduler")
+        if self.isVisible():
+            self._update_options()
 
     def _update_info(self):
         preset = self.preset
@@ -794,6 +812,7 @@ class SamplerWidget(QWidget):
         self.value_changed.emit()
 
     def read(self, style: Style):
+        self._update_options()
         self._preset.setCurrentText(getattr(style, f"{self.prefix}sampler"))
         index = self._scheduler.findData(getattr(style, f"{self.prefix}scheduler", ""))
         self._scheduler.setCurrentIndex(max(index, 0))
