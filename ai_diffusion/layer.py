@@ -240,27 +240,8 @@ class Layer(QObject):
             parent.addChildNode(self.node, None)
 
     def refresh(self):
-        e = self._manager.image_extent
-        if e.pixel_count <= 3000 * 2000:
-            self._manager.refresh()
-            return
-
         # Hacky way of refreshing the projection of a layer, avoids a full document refresh
-        # but adds an undo operation
         self._node.setBlendingMode(self._node.blendingMode())
-
-        # Alternative for bounded refresh without polluting undo is to use Krita actions,
-        # when two actions cancel each other out they don't add undo entries.
-        # Downside: visibly switches active layer and visibility, annoying flicker
-        # vis = Krita.instance().action("toggle_layer_visibility")
-        # if not self.is_active:
-        #     with RestoreActiveLayer(self._manager):
-        #         self._manager.active = self
-        #         vis.trigger()
-        #         vis.trigger()
-        # else:
-        #     vis.trigger()
-        #     vis.trigger()
 
     def thumbnail(self, size: Extent):
         return self.node.thumbnail(*size)
@@ -595,10 +576,6 @@ class LayerManager(QObject):
         if doc := self._doc:
             return Extent(doc.width(), doc.height())
         return Extent(1, 1)
-
-    def refresh(self):
-        if doc := self._doc:
-            doc.refreshProjection()
 
     def __bool__(self):
         return self._doc is not None
