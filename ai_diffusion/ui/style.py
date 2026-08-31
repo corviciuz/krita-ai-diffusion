@@ -675,19 +675,17 @@ class SamplerWidget(QWidget):
         expander = ExpanderButton(title, self)
 
         self._preset = QComboBox(self)
-        self._preset.addItems(SamplerPresets.instance().names())
         self._preset.setMinimumWidth(230)
         self._preset.currentIndexChanged.connect(self._select_preset)
 
         self._scheduler = QComboBox(self)
-        self._scheduler.addItem(_("Preset Default"), "")
-        for name in scheduler_names():
-            self._scheduler.addItem(name, name)
         self._scheduler.setMinimumWidth(140)
         self._scheduler.setToolTip(
             _("Override the noise schedule (scheduler) of the selected sampler preset")
         )
         self._scheduler.currentIndexChanged.connect(self.notify_changed)
+        root.connection.models_changed.connect(self._update_options)
+        self._update_options()
 
         self._lock_params = SwitchWidget(self)
         self._lock_params.setToolTip(_("Keep current steps and CFG when switching the sampler"))
@@ -749,6 +747,35 @@ class SamplerWidget(QWidget):
             self._cfg.value = preset.cfg
         self._update_info()
         self.notify_changed()
+
+    def _update_options(self):
+        presets = SamplerPresets.instance().names()
+        samplers: list[str] = []
+        schedulers = scheduler_names()
+        if client := root.connection.client_if_connected:
+            nodes = client.models.node_inputs
+            samplers = nodes.options("KSampler", "sampler_name")
+            server_schedulers = nodes.options("KSampler", "scheduler")
+            if server_schedulers:
+                schedulers = server_schedulers
+
+        sampler_options = presets + sorted(
+            {name for name in samplers if name not in presets}, key=str.casefold
+        )
+        current_sampler = self._preset.currentText()
+        current_scheduler = self._scheduler.currentData()
+        with SignalBlocker(self._preset), SignalBlocker(self._scheduler):
+            self._preset.clear()
+            self._preset.addItems(sampler_options)
+            if current_sampler in sampler_options:
+                self._preset.setCurrentText(current_sampler)
+
+            self._scheduler.clear()
+            self._scheduler.addItem(_("Preset Default"), "")
+            for name in sorted(set(schedulers), key=str.casefold):
+                self._scheduler.addItem(name, name)
+            index = self._scheduler.findData(current_scheduler)
+            self._scheduler.setCurrentIndex(max(index, 0))
 
     def _update_info(self):
         preset = self.preset
