@@ -685,6 +685,7 @@ class SamplerWidget(QWidget):
             _("Override the noise schedule (scheduler) of the selected sampler preset")
         )
         self._scheduler.currentIndexChanged.connect(self.notify_changed)
+        self._scheduler.currentIndexChanged.connect(self._update_info)
         cached_samplers, cached_schedulers = SamplerPresets.load_server_cache()
         self._server_samplers: list[str] = cached_samplers
         self._server_schedulers: list[str] = cached_schedulers
@@ -800,9 +801,11 @@ class SamplerWidget(QWidget):
         if self.isVisible():
             self._update_options()
 
-    def _update_info(self):
+    def _update_info(self, *args):
         preset = self.preset
-        text = "<b>" + _("Sampler") + f":</b> {preset.sampler} / {preset.scheduler}"
+        # Show the user-selected scheduler if overridden, otherwise the preset default
+        scheduler = self._scheduler.currentData() or preset.scheduler
+        text = "<b>" + _("Sampler") + f":</b> {preset.sampler} / {scheduler}"
         if preset.lora:
             text += f" +LoRA '{preset.lora}'"
         self._sampler_info.setText(text)
