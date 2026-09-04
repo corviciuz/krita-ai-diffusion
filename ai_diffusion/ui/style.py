@@ -685,8 +685,9 @@ class SamplerWidget(QWidget):
             _("Override the noise schedule (scheduler) of the selected sampler preset")
         )
         self._scheduler.currentIndexChanged.connect(self.notify_changed)
-        self._server_samplers: list[str] = []
-        self._server_schedulers: list[str] = []
+        cached_samplers, cached_schedulers = SamplerPresets.load_server_cache()
+        self._server_samplers: list[str] = cached_samplers
+        self._server_schedulers: list[str] = cached_schedulers
         self._combo_sampler_options: tuple[str, ...] = ()
         self._combo_scheduler_options: tuple[str, ...] = ()
         root.connection.models_changed.connect(self._server_options_changed)
@@ -758,8 +759,12 @@ class SamplerWidget(QWidget):
         samplers = self._server_samplers
         schedulers = self._server_schedulers or scheduler_names()
 
+        # Exclude raw ComfyUI sampler names already covered by a named preset to
+        # avoid duplicates in the list (e.g. "euler" alongside "Euler Normal").
+        covered = SamplerPresets.instance().covered_sampler_codes()
         sampler_options = presets + sorted(
-            {name for name in samplers if name not in presets}, key=str.casefold
+            {name for name in samplers if name not in presets and name not in covered},
+            key=str.casefold,
         )
         scheduler_options = sorted(set(schedulers), key=str.casefold)
         if (
@@ -786,12 +791,12 @@ class SamplerWidget(QWidget):
             self._scheduler.setCurrentIndex(max(index, 0))
 
     def _server_options_changed(self):
-        self._server_samplers = []
-        self._server_schedulers = []
         if client := root.connection.client_if_connected:
             nodes = client.models.node_inputs
             self._server_samplers = nodes.options("KSampler", "sampler_name")
             self._server_schedulers = nodes.options("KSampler", "scheduler")
+            SamplerPresets.save_server_cache(self._server_samplers, self._server_schedulers)
+        # When disconnected: keep existing values (from cache or last connection)
         if self.isVisible():
             self._update_options()
 

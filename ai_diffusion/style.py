@@ -380,6 +380,7 @@ class SamplerPreset(NamedTuple):
 class SamplerPresets:
     default_preset_file = plugin_dir / "presets" / "samplers.json"
     default_user_preset_file = user_data_dir / "presets" / "samplers.json"
+    _cache_file = user_data_dir / "cache" / "server_samplers.json"
 
     _preset_file: Path
     _user_preset_file: Path
@@ -422,14 +423,46 @@ class SamplerPresets:
         if name in legacy_map:
             return legacy_map[name]
         if name in _sampler_map:
+            sampler_code = _sampler_map[name]
+            # Deduplication: return existing named preset with the same underlying
+            # sampler code instead of creating a duplicate raw-name entry.
+            for preset_name, preset in self._presets.items():
+                if not preset.hidden and preset.sampler == sampler_code:
+                    return preset_name
             self._presets[name] = SamplerPreset(
-                sampler=_sampler_map[name],
-                scheduler=_scheduler_map[name],
+                sampler=sampler_code,
+                scheduler=_scheduler_map.get(name, "karras"),
                 steps=steps,
                 cfg=cfg_scale,
             )
             return name
         return None
+
+    def covered_sampler_codes(self) -> set[str]:
+        """Raw sampler codes already covered by at least one visible named preset."""
+        return {p.sampler for p in self._presets.values() if not p.hidden}
+
+    @classmethod
+    def load_server_cache(cls) -> tuple[list[str], list[str]]:
+        """Load cached server sampler/scheduler options from disk."""
+        try:
+            if cls._cache_file.exists():
+                data = json.loads(cls._cache_file.read_text())
+                return data.get("samplers", []), data.get("schedulers", [])
+        except Exception as e:
+            log.warning(f"Failed to load server sampler cache: {e}")
+        return [], []
+
+    @classmethod
+    def save_server_cache(cls, samplers: list[str], schedulers: list[str]) -> None:
+        """Persist server sampler/scheduler options to disk cache."""
+        try:
+            cls._cache_file.parent.mkdir(parents=True, exist_ok=True)
+            cls._cache_file.write_text(
+                json.dumps({"samplers": samplers, "schedulers": schedulers}, indent=2)
+            )
+        except Exception as e:
+            log.warning(f"Failed to save server sampler cache: {e}")
 
     def write_stub(self):
         if not self._user_preset_file.exists():
