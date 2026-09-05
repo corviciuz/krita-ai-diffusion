@@ -89,15 +89,17 @@ class JobParams:
     def set_style(self, style: Style, checkpoint: str):
         self.metadata["style"] = style.filename
         self.metadata["checkpoint"] = checkpoint
-        self.metadata["sampler"] = style.sampler
-        scheduler = style.scheduler
-        if not scheduler:
-            preset = SamplerPresets.instance()[style.sampler]
-            scheduler = preset.scheduler
+        preset = SamplerPresets.instance()[style.sampler]
+        if settings.use_named_sampler_presets:
+            self.metadata["sampler"] = style.sampler
+        else:
+            self.metadata["sampler"] = preset.sampler
+        scheduler = style.scheduler or preset.scheduler
         self.metadata["scheduler"] = scheduler
         self.metadata["steps"] = style.sampler_steps
         self.metadata["guidance"] = style.cfg_scale
         self.metadata["refine"] = style.linked_refine_model or "none"
+
 
     def set_control(self, control: control.ControlLayerList):
         self.metadata["control"] = [
