@@ -873,10 +873,22 @@ class SamplerWidget(QWidget):
         settings.save()
 
     def write(self, style: Style):
-        setattr(style, f"{self.prefix}sampler", self._preset.currentText())
+        sampler = self._preset.currentText()
+        # Always persist using the named-preset name when one exists, so the
+        # saved value survives a restart regardless of the display mode setting.
+        if not settings.use_named_sampler_presets:
+            for name in self._preset_names:
+                try:
+                    if SamplerPresets.instance()[name].sampler == sampler:
+                        sampler = name
+                        break
+                except KeyError:
+                    continue
+        setattr(style, f"{self.prefix}sampler", sampler)
         setattr(style, f"{self.prefix}scheduler", self._scheduler.currentData())
         setattr(style, f"{self.prefix}sampler_steps", self._steps.value)
         setattr(style, f"{self.prefix}cfg_scale", self._cfg.value)
+
 
 
 class StylePresets(SettingsTab):

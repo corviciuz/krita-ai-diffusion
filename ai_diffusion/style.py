@@ -436,6 +436,20 @@ class SamplerPresets:
                 cfg=cfg_scale,
             )
             return name
+        # Raw ComfyUI sampler code stored directly (e.g. "dpmpp_2m" saved by raw
+        # display mode). Map to a named preset if one covers it, otherwise create
+        # a temporary entry so the style doesn't fall back to the global default.
+        if name in _comfy_samplers:
+            for preset_name, preset in self._presets.items():
+                if not preset.hidden and preset.sampler == name:
+                    return preset_name
+            self._presets[name] = SamplerPreset(
+                sampler=name,
+                scheduler="karras",
+                steps=steps,
+                cfg=cfg_scale,
+            )
+            return name
         return None
 
     def covered_sampler_codes(self) -> set[str]:
