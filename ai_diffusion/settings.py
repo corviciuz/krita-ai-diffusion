@@ -413,6 +413,15 @@ class Settings(QObject):
     live_lock_sampler_params: bool
     _live_lock_sampler_params = Setting("Lock Live Sampler Steps/CFG", False)
 
+    use_named_sampler_presets: bool
+    _use_named_sampler_presets = Setting(
+        _("Use Named Sampler Presets"),
+        True,
+        _(
+            "Show descriptive preset names (e.g. 'Default - DPM++ 2M') instead of raw ComfyUI sampler names in the sampler list"
+        ),
+    )
+
     recent_styles_count: int
     _recent_styles_count = Setting(
         _("Recent Styles"),

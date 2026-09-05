@@ -693,6 +693,7 @@ class SamplerWidget(QWidget):
         self._combo_scheduler_options: tuple[str, ...] = ()
         root.connection.models_changed.connect(self._server_options_changed)
         self._server_options_changed()
+        settings.changed.connect(self._on_settings_changed)
 
         self._lock_params = SwitchWidget(self)
         self._lock_params.setToolTip(_("Keep current steps and CFG when switching the sampler"))
@@ -756,17 +757,21 @@ class SamplerWidget(QWidget):
         self.notify_changed()
 
     def _update_options(self):
-        presets = self._preset_names
         samplers = self._server_samplers
         schedulers = self._server_schedulers or scheduler_names()
 
-        # Exclude raw ComfyUI sampler names already covered by a named preset to
-        # avoid duplicates in the list (e.g. "euler" alongside "Euler Normal").
-        covered = SamplerPresets.instance().covered_sampler_codes()
-        sampler_options = presets + sorted(
-            {name for name in samplers if name not in presets and name not in covered},
-            key=str.casefold,
-        )
+        if settings.use_named_sampler_presets:
+            presets = self._preset_names
+            # Exclude raw ComfyUI sampler names already covered by a named preset to
+            # avoid duplicates in the list (e.g. "euler" alongside "Euler Normal").
+            covered = SamplerPresets.instance().covered_sampler_codes()
+            sampler_options = presets + sorted(
+                {name for name in samplers if name not in presets and name not in covered},
+                key=str.casefold,
+            )
+        else:
+            # Raw mode: show only ComfyUI sampler names, no custom preset names
+            sampler_options = sorted(set(samplers), key=str.casefold)
         scheduler_options = sorted(set(schedulers), key=str.casefold)
         if (
             tuple(sampler_options) == self._combo_sampler_options
@@ -781,8 +786,9 @@ class SamplerWidget(QWidget):
         with SignalBlocker(self._preset), SignalBlocker(self._scheduler):
             self._preset.clear()
             self._preset.addItems(sampler_options)
-            if current_sampler in sampler_options:
-                self._preset.setCurrentText(current_sampler)
+            resolved = self._find_equivalent_sampler(current_sampler)
+            if resolved:
+                self._preset.setCurrentText(resolved)
 
             self._scheduler.clear()
             self._scheduler.addItem(_("Preset Default"), "")
@@ -800,6 +806,37 @@ class SamplerWidget(QWidget):
         # When disconnected: keep existing values (from cache or last connection)
         if self.isVisible():
             self._update_options()
+
+    def _on_settings_changed(self, name: str, value):
+        if name == "use_named_sampler_presets" and self.isVisible():
+            # Force combo rebuild when the display mode toggles
+            self._combo_sampler_options = ()
+            self._update_options()
+
+    def _find_equivalent_sampler(self, name: str) -> str | None:
+        """Return *name* if it exists in the current combo, otherwise find an
+        equivalent entry by matching the underlying ComfyUI sampler code.
+        Used to keep the selection intact when switching between named-preset
+        and raw-name display modes."""
+        options = self._combo_sampler_options
+        if name in options:
+            return name
+        presets = SamplerPresets.instance()
+        # Named preset → find its raw sampler code in the raw list
+        try:
+            raw_code = presets[name].sampler
+            if raw_code in options:
+                return raw_code
+        except KeyError:
+            pass
+        # Raw sampler code → find a named preset that uses it
+        for opt in options:
+            try:
+                if presets[opt].sampler == name:
+                    return opt
+            except KeyError:
+                continue
+        return None
 
     def _update_info(self, *args):
         preset = self.preset
@@ -821,7 +858,10 @@ class SamplerWidget(QWidget):
 
     def read(self, style: Style):
         self._update_options()
-        self._preset.setCurrentText(getattr(style, f"{self.prefix}sampler"))
+        sampler = getattr(style, f"{self.prefix}sampler")
+        resolved = self._find_equivalent_sampler(sampler)
+        if resolved:
+            self._preset.setCurrentText(resolved)
         index = self._scheduler.findData(getattr(style, f"{self.prefix}scheduler", ""))
         self._scheduler.setCurrentIndex(max(index, 0))
         self._steps.value = getattr(style, f"{self.prefix}sampler_steps")
