@@ -253,3 +253,28 @@ def test_sort_recent_styles(tmp_path):
     recent, remaining = sort_recent_styles(all_styles, ["delta.json", "beta.json"], 2)
     assert recent == [d, b]
     assert remaining == [a, c]
+
+
+def test_custom_sampler_load(tmp_path):
+    style_file = tmp_path / "custom_style.json"
+    style_file.write_text(
+        json.dumps({
+            "name": "Custom Style",
+            "sampler": "mortex_2m",
+            "sampler_steps": 25,
+            "cfg_scale": 5.5,
+        })
+    )
+    style = Style.load(style_file)
+    assert style is not None
+    assert style.sampler == "mortex_2m"
+    assert style.sampler_steps == 25
+    assert style.cfg_scale == 5.5
+    assert "mortex_2m" in SamplerPresets.instance().names()
+
+
+def test_add_missing_custom_sampler():
+    presets = SamplerPresets.instance()
+    result = presets.add_missing("anri", 20, 6.0)
+    assert result == "anri"
+    assert presets["anri"].sampler == "anri"

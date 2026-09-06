@@ -39,7 +39,7 @@ from ..files import File, FileFilter, FileFormat, FileSource
 from ..localization import translate as _
 from ..model.root import root
 from ..settings import ServerMode, Setting, settings
-from ..style import SamplerPresets, Style, Styles, StyleSettings, scheduler_names
+from ..style import SamplerPresets, Style, Styles, StyleSettings, _comfy_samplers, scheduler_names
 from . import theme
 from .settings_widgets import (
     ComboBoxSetting,
@@ -675,7 +675,6 @@ class SamplerWidget(QWidget):
         expander = ExpanderButton(title, self)
 
         self._preset = QComboBox(self)
-        self._preset_names = SamplerPresets.instance().names()
         self._preset.setMinimumWidth(230)
         self._preset.currentIndexChanged.connect(self._select_preset)
 
@@ -744,6 +743,10 @@ class SamplerWidget(QWidget):
         self.setLayout(layout)
 
     @property
+    def _preset_names(self) -> list[str]:
+        return SamplerPresets.instance().names()
+
+    @property
     def preset(self):
         name = self._preset.currentText()
         return SamplerPresets.instance()[name]
@@ -757,7 +760,7 @@ class SamplerWidget(QWidget):
         self.notify_changed()
 
     def _update_options(self):
-        samplers = self._server_samplers
+        samplers = self._server_samplers or _comfy_samplers
         schedulers = self._server_schedulers or scheduler_names()
 
         if settings.use_named_sampler_presets:
@@ -771,7 +774,8 @@ class SamplerWidget(QWidget):
             )
         else:
             # Raw mode: show only ComfyUI sampler names, no custom preset names
-            sampler_options = sorted(set(samplers), key=str.casefold)
+            covered = SamplerPresets.instance().covered_sampler_codes()
+            sampler_options = sorted(set(samplers) | covered, key=str.casefold)
         scheduler_options = sorted(set(schedulers), key=str.casefold)
         if (
             tuple(sampler_options) == self._combo_sampler_options
@@ -787,15 +791,25 @@ class SamplerWidget(QWidget):
             self._preset.clear()
             self._preset.addItems(sampler_options)
             resolved = self._find_equivalent_sampler(current_sampler)
-            if resolved:
+            if resolved and self._preset.findText(resolved) >= 0:
                 self._preset.setCurrentText(resolved)
+            elif current_sampler:
+                if self._preset.findText(current_sampler) < 0:
+                    self._preset.addItem(current_sampler)
+                self._preset.setCurrentText(current_sampler)
 
             self._scheduler.clear()
             self._scheduler.addItem(_("Preset Default"), "")
             for name in scheduler_options:
                 self._scheduler.addItem(name, name)
             index = self._scheduler.findData(current_scheduler)
-            self._scheduler.setCurrentIndex(max(index, 0))
+            if index >= 0:
+                self._scheduler.setCurrentIndex(index)
+            elif current_scheduler:
+                self._scheduler.addItem(current_scheduler, current_scheduler)
+                self._scheduler.setCurrentIndex(self._scheduler.count() - 1)
+            else:
+                self._scheduler.setCurrentIndex(0)
 
     def _server_options_changed(self):
         if client := root.connection.client_if_connected:
@@ -860,10 +874,23 @@ class SamplerWidget(QWidget):
         self._update_options()
         sampler = getattr(style, f"{self.prefix}sampler")
         resolved = self._find_equivalent_sampler(sampler)
-        if resolved:
-            self._preset.setCurrentText(resolved)
-        index = self._scheduler.findData(getattr(style, f"{self.prefix}scheduler", ""))
-        self._scheduler.setCurrentIndex(max(index, 0))
+        with SignalBlocker(self._preset):
+            if resolved and self._preset.findText(resolved) >= 0:
+                self._preset.setCurrentText(resolved)
+            elif sampler:
+                if self._preset.findText(sampler) < 0:
+                    self._preset.addItem(sampler)
+                self._preset.setCurrentText(sampler)
+        saved_scheduler = getattr(style, f"{self.prefix}scheduler", "")
+        with SignalBlocker(self._scheduler):
+            index = self._scheduler.findData(saved_scheduler)
+            if index >= 0:
+                self._scheduler.setCurrentIndex(index)
+            elif saved_scheduler:
+                self._scheduler.addItem(saved_scheduler, saved_scheduler)
+                self._scheduler.setCurrentIndex(self._scheduler.count() - 1)
+            else:
+                self._scheduler.setCurrentIndex(0)
         self._steps.value = getattr(style, f"{self.prefix}sampler_steps")
         self._cfg.value = getattr(style, f"{self.prefix}cfg_scale")
         self._update_info()
@@ -874,6 +901,8 @@ class SamplerWidget(QWidget):
 
     def write(self, style: Style):
         sampler = self._preset.currentText()
+        if not sampler:
+            return
         # Always persist using the named-preset name when one exists, so the
         # saved value survives a restart regardless of the display mode setting.
         if not settings.use_named_sampler_presets:
@@ -888,6 +917,7 @@ class SamplerWidget(QWidget):
         setattr(style, f"{self.prefix}scheduler", self._scheduler.currentData())
         setattr(style, f"{self.prefix}sampler_steps", self._steps.value)
         setattr(style, f"{self.prefix}cfg_scale", self._cfg.value)
+        SamplerPresets.instance().add_missing(sampler, self._steps.value, self._cfg.value)
 
 
 

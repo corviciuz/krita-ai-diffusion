@@ -418,6 +418,8 @@ class SamplerPresets:
             log.error(f"Failed to load sampler presets from {file}: {e}")
 
     def add_missing(self, name: str, steps: int, cfg_scale: float):
+        if not name:
+            return None
         if name in self._presets:
             return name
         if name in legacy_map:
@@ -436,21 +438,20 @@ class SamplerPresets:
                 cfg=cfg_scale,
             )
             return name
-        # Raw ComfyUI sampler code stored directly (e.g. "dpmpp_2m" saved by raw
-        # display mode). Map to a named preset if one covers it, otherwise create
-        # a temporary entry so the style doesn't fall back to the global default.
-        if name in _comfy_samplers:
+        # If the name is already an underlying ComfyUI sampler code covered by an
+        # existing named preset, only map to that preset if using named presets.
+        if settings.use_named_sampler_presets:
             for preset_name, preset in self._presets.items():
                 if not preset.hidden and preset.sampler == name:
                     return preset_name
-            self._presets[name] = SamplerPreset(
-                sampler=name,
-                scheduler="karras",
-                steps=steps,
-                cfg=cfg_scale,
-            )
-            return name
-        return None
+        # Raw ComfyUI sampler code stored directly (built-in, cached, or custom)
+        self._presets[name] = SamplerPreset(
+            sampler=name,
+            scheduler="karras",
+            steps=steps,
+            cfg=cfg_scale,
+        )
+        return name
 
     def covered_sampler_codes(self) -> set[str]:
         """Raw sampler codes already covered by at least one visible named preset."""
