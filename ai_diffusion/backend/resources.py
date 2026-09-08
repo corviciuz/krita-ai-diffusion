@@ -10,10 +10,10 @@ from typing import Any, NamedTuple
 
 # Version identifier for all the resources defined here. This is used as the server version.
 # It usually follows the plugin version, but not all new plugin versions also require a server update.
-version = "1.53.2"
+version = "1.53.3"
 
 comfy_url = "https://github.com/comfyanonymous/ComfyUI"
-comfy_version = "8a33128f2f8c5585c57486c07de481241e70a39c"
+comfy_version = "efa6c8f804bff78b46a0fd458ebd2e47bba07a30"
 
 
 class CustomNode(NamedTuple):
@@ -64,8 +64,8 @@ optional_custom_nodes = [
     CustomNode(
         "GGUF",
         "ComfyUI-GGUF",
-        "https://github.com/city96/ComfyUI-GGUF",
-        "01f8845bf30d89fff293c7bd50187bc59d9d53ea",
+        "https://github.com/molbal/ComfyUI-GGUF",
+        "c6e14d9c2475bb39a100f85d582e224c6e884f80",
         ["UnetLoaderGGUF", "DualCLIPLoaderGGUF"],
     ),
 ]
