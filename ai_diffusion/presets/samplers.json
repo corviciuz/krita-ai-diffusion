@@ -6,12 +6,19 @@
         "minimum_steps": 4,
         "cfg": 7.0
     },
-    "Alternative - Euler A": {
-        "sampler": "euler_ancestral",
+    "DPM++ 2M Exponential": {
+        "sampler": "dpmpp_2m",
+        "scheduler": "exponential",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 6.5
+    },
+    "DPM++ 2M Normal": {
+        "sampler": "dpmpp_2m",
         "scheduler": "normal",
         "steps": 20,
         "minimum_steps": 4,
-        "cfg": 6.0
+        "cfg": 7.0
     },
     "Creative - DPM++ 2M SDE": {
         "sampler": "dpmpp_2m_sde_gpu",
@@ -20,12 +27,61 @@
         "minimum_steps": 4,
         "cfg": 6.0
     },
-    "Fast - UniPC BH2": {
-        "sampler": "uni_pc_bh2",
-        "scheduler": "gits",
-        "steps": 12,
+    "DPM++ 2M SDE Exponential": {
+        "sampler": "dpmpp_2m_sde_gpu",
+        "scheduler": "exponential",
+        "steps": 20,
         "minimum_steps": 4,
-        "cfg": 4.0
+        "cfg": 6.0
+    },
+    "DPM++ 3M SDE Karras": {
+        "sampler": "dpmpp_3m_sde_gpu",
+        "scheduler": "karras",
+        "steps": 24,
+        "minimum_steps": 4,
+        "cfg": 6.0
+    },
+    "DPM++ 3M SDE Exponential": {
+        "sampler": "dpmpp_3m_sde_gpu",
+        "scheduler": "exponential",
+        "steps": 24,
+        "minimum_steps": 4,
+        "cfg": 6.0
+    },
+    "Alternative - Euler A": {
+        "sampler": "euler_ancestral",
+        "scheduler": "normal",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 6.0
+    },
+    "Euler A Karras": {
+        "sampler": "euler_ancestral",
+        "scheduler": "karras",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 6.0
+    },
+    "Euler Normal": {
+        "sampler": "euler",
+        "scheduler": "normal",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 6.0
+    },
+    "Euler Karras": {
+        "sampler": "euler",
+        "scheduler": "karras",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 6.0
+    },
+    "Euler Exponential": {
+        "sampler": "euler",
+        "scheduler": "exponential",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 6.0
     },
     "Euler beta": {
         "sampler": "euler",
@@ -34,8 +90,141 @@
         "minimum_steps": 4,
         "cfg": 5.5
     },
+    "Heun Karras": {
+        "sampler": "heun",
+        "scheduler": "karras",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 6.5
+    },
+    "Heun Exponential": {
+        "sampler": "heun",
+        "scheduler": "exponential",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 6.5
+    },
+    "Heun++2 Karras": {
+        "sampler": "heunpp2",
+        "scheduler": "karras",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 6.5
+    },
+    "LMS Karras": {
+        "sampler": "lms",
+        "scheduler": "karras",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
+    "DPM2 Karras": {
+        "sampler": "dpm_2",
+        "scheduler": "karras",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
+    "DPM2 Ancestral Karras": {
+        "sampler": "dpm_2_ancestral",
+        "scheduler": "karras",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
+    "DPM++ 2S Ancestral Karras": {
+        "sampler": "dpmpp_2s_ancestral",
+        "scheduler": "karras",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
+    "Fast - UniPC BH2": {
+        "sampler": "uni_pc_bh2",
+        "scheduler": "gits",
+        "steps": 12,
+        "minimum_steps": 4,
+        "cfg": 4.0
+    },
+    "UniPC Karras": {
+        "sampler": "uni_pc",
+        "scheduler": "karras",
+        "steps": 15,
+        "minimum_steps": 4,
+        "cfg": 5.0
+    },
+    "DDIM": {
+        "sampler": "ddim",
+        "scheduler": "ddim_uniform",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
+    "DPM Fast": {
+        "sampler": "dpm_fast",
+        "scheduler": "normal",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
+    "DPM Adaptive": {
+        "sampler": "dpm_adaptive",
+        "scheduler": "exponential",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
+    "DDPM": {
+        "sampler": "ddpm",
+        "scheduler": "normal",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
+    "iPNDM": {
+        "sampler": "ipndm",
+        "scheduler": "normal",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
+    "iPNDM v": {
+        "sampler": "ipndm_v",
+        "scheduler": "normal",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
+    "DEIS": {
+        "sampler": "deis",
+        "scheduler": "normal",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
+    "ER SDE": {
+        "sampler": "er_sde",
+        "scheduler": "normal",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
+    "Gradien Estimation": {
+        "sampler": "gradient_estimation",
+        "scheduler": "normal",
+        "steps": 20,
+        "minimum_steps": 4,
+        "cfg": 7.0
+    },
     "RES multistep simple": {
         "sampler": "res_multistep",
+        "scheduler": "simple",
+        "steps": 20,
+        "minimum_steps": 3,
+        "cfg": 4.0
+    },
+    "RES multistep ancestral simple": {
+        "sampler": "res_multistep_ancestral",
         "scheduler": "simple",
         "steps": 20,
         "minimum_steps": 3,

@@ -59,7 +59,7 @@ from ..settings import (
     settings,
 )
 from ..style import Arch, Style, Styles
-from ..text import create_ai_generated_xmp, create_img_metadata, extract_layers
+from ..text import create_ai_generated_xmp, create_img_metadata, create_prompt_xmp, extract_layers
 from ..util import PluginError, clamp, ensure, is_one, trim_text, unique
 from ..util import client_logger as log
 from .connection import Connection, ConnectionState
@@ -169,7 +169,11 @@ class DocumentModel(QObject, ObservableProperties):
         self._doc = document
         self._connection = connection
         self._layer: Layer | None = None
-        self.generate_seed()
+        if settings.startup_seed > 0:
+            self.seed = settings.startup_seed
+            self.fixed_seed = True
+        else:
+            self.generate_seed()
         self.jobs = JobQueue()
         self.regions = RootRegion(self)
         self.edit_regions = RootRegion(self)
@@ -321,7 +325,18 @@ class DocumentModel(QObject, ObservableProperties):
         job_params.ref_layers = ref_layers
         job_params.is_layered = arch is Arch.qwen_l
         job_params.metadata.update(prompt_meta)
-        job_params.metadata["loras"] = [{"name": l.name, "weight": l.strength} for l in loras]
+        job_params.metadata["loras"] = [
+            {
+                "name": l.name,
+                "trigger": (
+                    file.meta("lora_triggers", "")
+                    if (file := FileLibrary.instance().loras.find(l.name))
+                    else ""
+                ),
+                "weight": l.strength,
+            }
+            for l in loras
+        ]
         job_params.metadata["strength"] = strength
         return input, job_params, original_conditioning
 
@@ -568,7 +583,16 @@ class DocumentModel(QObject, ObservableProperties):
                 job_params.set_style(self.style, custom_input.models.checkpoint)
                 metadata.update(prepared.metadata)
                 metadata["loras"] = [
-                    {"name": l.name, "weight": l.strength} for l in custom_input.models.loras
+                    {
+                        "name": l.name,
+                        "trigger": (
+                            file.meta("lora_triggers", "")
+                            if (file := FileLibrary.instance().loras.find(l.name))
+                            else ""
+                        ),
+                        "weight": l.strength,
+                    }
+                    for l in custom_input.models.loras
                 ]
 
             input = WorkflowInput(
@@ -681,6 +705,7 @@ class DocumentModel(QObject, ObservableProperties):
         elif message.event is ClientEvent.finished:
             if message.error:  # successful jobs may have encountered some warnings
                 self.report_error(Error.from_string(message.error, ErrorKind.warning))
+            job.generation_time = message.generation_time
             if message.images:
                 self.jobs.set_results(job, message.images)
             if job.kind is JobKind.control_layer:
@@ -1649,20 +1674,38 @@ def _save_job_result(model: DocumentModel, job: Job | None, index: int):
     result_image = job.results[index]
     base_image.draw_image(result_image, job.params.bounds.offset)
 
-    if settings.save_image_metadata and ext == ".png":
+    if settings.save_image_metadata:
         metadata_text = create_img_metadata(job.params)
-        base_image.save_png_with_metadata(
-            filepath=path, metadata_text=metadata_text, format=settings.save_image_format
-        )
+
+        if ext == ".png":
+            base_image.save_png_with_metadata(
+                filepath=path, metadata_text=metadata_text, format=ImageFileFormat.png
+            )
+        else:
+            quality = None
+            if settings.save_image_format is ImageFileFormat.webp:
+                quality = settings.save_image_quality_webp
+            elif settings.save_image_format is ImageFileFormat.jpeg:
+                quality = settings.save_image_quality_jpeg
+            elif settings.save_image_format is ImageFileFormat.avif:
+                quality = settings.save_image_quality_avif
+
+            base_image.save(path, settings.save_image_format, quality)
+            xmp = create_prompt_xmp(metadata_text)
+            if settings.server_mode is ServerMode.cloud:
+                xmp += create_ai_generated_xmp(job.params.workflow_kind)
+            base_image.write_xmp_metadata(path, xmp)
     else:
         quality = None
         if settings.save_image_format is ImageFileFormat.webp:
             quality = settings.save_image_quality_webp
         elif settings.save_image_format is ImageFileFormat.jpeg:
             quality = settings.save_image_quality_jpeg
+        elif settings.save_image_format is ImageFileFormat.avif:
+            quality = settings.save_image_quality_avif
 
         base_image.save(path, settings.save_image_format, quality)
 
-    if settings.server_mode is ServerMode.cloud:
+    if settings.server_mode is ServerMode.cloud and not settings.save_image_metadata:
         xmp = create_ai_generated_xmp(job.params.workflow_kind)
         base_image.write_xmp_metadata(path, xmp)

@@ -78,7 +78,6 @@ python scripts/design.py --exit
 5. create a fresh venv with `uv` inside the new worktree. match python version and packages from the venv
    in the main clone rather than installing from requirements.
 
-
 ## Code Guidelines
 
 * Avoid docstrings/comments for small functions and intuitive code

@@ -41,14 +41,14 @@ def update_server_requirements():
     req_dir = root / "ai_diffusion" / "backend" / "requirements"
     configs = {
         "linux-cpu": Cfg("x86_64-unknown-linux-gnu", "cpu"),
-        "linux-cuda": Cfg("x86_64-unknown-linux-gnu", "cu130"),
+        "linux-cuda": Cfg("x86_64-unknown-linux-gnu", "cu132"),
         "linux-cuda126": Cfg("x86_64-unknown-linux-gnu", "cu126"),
         "linux-xpu": Cfg("x86_64-unknown-linux-gnu", "xpu"),
         "linux-rocm": Cfg("x86_64-unknown-linux-gnu", "rocm7.2"),
         "macos-cpu": Cfg("aarch64-apple-darwin", os_version="14.0"),
         "macos-mps": Cfg("aarch64-apple-darwin", os_version="14.0"),
         "windows-cpu": Cfg("x86_64-pc-windows-msvc", "cpu"),
-        "windows-cuda": Cfg("x86_64-pc-windows-msvc", "cu130"),
+        "windows-cuda": Cfg("x86_64-pc-windows-msvc", "cu132"),
         "windows-cuda126": Cfg("x86_64-pc-windows-msvc", "cu126"),
         "windows-xpu": Cfg("x86_64-pc-windows-msvc", "xpu"),
         "windows-rocm": Cfg(

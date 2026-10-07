@@ -8,7 +8,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from itertools import product
-from time import time
+from time import monotonic, time
 from typing import Any
 
 from .. import platform_tools, util
@@ -136,6 +136,16 @@ class Progress:
         return 0.2 * node_part + 0.8 * sample_part
 
 
+def _generation_time(
+    start_timestamp: Any, end_timestamp: Any, local_start: float | None
+) -> float | None:
+    if isinstance(start_timestamp, (int, float)) and isinstance(end_timestamp, (int, float)):
+        return max(0.0, (end_timestamp - start_timestamp) / 1000)
+    if local_start is not None:
+        return max(0.0, monotonic() - local_start)
+    return None
+
+
 class ComfyClient(Client):
     """HTTP/WebSocket client which sends requests to and listens to messages from a ComfyUI server."""
 
@@ -164,22 +174,20 @@ class ComfyClient(Client):
         self.url = parse_url(self.url)
         log.info(f"Connecting to {self.url}")
 
-        # Retrieve system info
-        self.device_info = DeviceInfo.parse(await self._get("system_stats"))
-
         # Try to establish websockets connection
         wsurl = websocket_url(self.url)
         wsargs = websocket_args(self._token)
-        try:
-            async with websockets.connect(f"{wsurl}/ws?clientId={self._id}", **wsargs):
-                pass
-        except Exception as e:
-            msg = _("Could not establish websocket connection at") + f" {wsurl}: {e!s}"
-            raise ServerError(msg)
+        device_data, _ = await asyncio.gather(
+            self._get("system_stats"), self._check_websocket(wsurl, wsargs)
+        )
+        self.device_info = DeviceInfo.parse(device_data)
 
         # Check custom nodes
         log.info("Checking for required custom nodes...")
-        nodes = ComfyObjectInfo(await self._get("object_info"))
+        node_data, languages = await asyncio.gather(
+            self._get("object_info"), _list_languages(self)
+        )
+        nodes = ComfyObjectInfo(node_data)
         missing = _check_for_missing_nodes(nodes)
         if len(missing) > 0 and settings.check_server_resources:
             raise MissingResources(missing)
@@ -187,7 +195,7 @@ class ComfyClient(Client):
         self._features = ClientFeatures(
             ip_adapter=True,
             translation=True,
-            languages=await _list_languages(self),
+            languages=languages,
             gguf="UnetLoaderGGUF" in nodes,
         )
 
@@ -234,23 +242,50 @@ class ComfyClient(Client):
                 id = resource_id(ResourceKind.upscaler, Arch.all, UpscalerName.fast_x(n))
                 available_resources[id] = models.default_upscaler
 
+    async def _check_websocket(self, url: str, args: dict):
+        try:
+            async with websockets.connect(f"{url}/ws?clientId={self._id}", **args):
+                pass
+        except Exception as e:
+            msg = _("Could not establish websocket connection at") + f" {url}: {e!s}"
+            raise ServerError(msg)
+
     async def discover_models(self, refresh: bool):
         if refresh:
             nodes = ComfyObjectInfo(await self._get("object_info"))
         else:
             nodes = self.models.node_inputs
 
+        async def inspect(folder: str):
+            statuses = []
+            result = {}
+            async for status, chunk in self.try_inspect(folder):
+                statuses.append(status)
+                result.update(chunk)
+            return folder, statuses, result
+
         checkpoints: dict[str, dict] = {}
         diffusion_models: dict[str, dict] = {}
-        async for status, result in self.try_inspect("checkpoints"):
-            yield status
-            checkpoints.update(result)
-        async for status, result in self.try_inspect("diffusion_models"):
-            yield status
-            diffusion_models.update(result)
-        async for status, result in self.try_inspect("unet_gguf"):
-            yield status
-            diffusion_models.update(result)
+        inspections = [
+            asyncio.create_task(inspect("checkpoints")),
+            asyncio.create_task(inspect("diffusion_models")),
+            asyncio.create_task(inspect("unet_gguf")),
+        ]
+        try:
+            for inspection in asyncio.as_completed(inspections):
+                folder, statuses, result = await inspection
+                for status in statuses:
+                    yield status
+                if result:
+                    if folder == "checkpoints":
+                        checkpoints.update(result)
+                    else:
+                        diffusion_models.update(result)
+        finally:
+            for inspection in inspections:
+                if not inspection.done():
+                    inspection.cancel()
+            await asyncio.gather(*inspections, return_exceptions=True)
         self._refresh_models(nodes, checkpoints, diffusion_models)
 
         # Check supported base models and make sure there is at least one
@@ -352,6 +387,9 @@ class ComfyClient(Client):
         images = ImageCollection()
         last_images = ImageCollection()
         result = None
+        execution_start_timestamp: int | float | None = None
+        execution_end_timestamp: int | float | None = None
+        local_execution_start: float | None = None
 
         async for msg in websocket:
             if isinstance(msg, bytes):
@@ -372,6 +410,9 @@ class ComfyClient(Client):
                         progress = Progress(self._active_job)
                         images = ImageCollection()
                         result = None
+                        execution_start_timestamp = msg["data"].get("timestamp")
+                        execution_end_timestamp = None
+                        local_execution_start = monotonic()
 
                 if msg["type"] == "execution_interrupted":
                     if job := await self._get_active_job(msg["data"]["prompt_id"]):
@@ -391,9 +432,22 @@ class ComfyClient(Client):
                             await self._report(ClientEvent.error, job_id, error=err)
                         else:
                             last_images = images
-                            await self._report(
-                                ClientEvent.finished, job_id, 1, images=images, result=result
+                            generation_time = _generation_time(
+                                execution_start_timestamp,
+                                execution_end_timestamp or msg["data"].get("timestamp"),
+                                local_execution_start,
                             )
+                            await self._report(
+                                ClientEvent.finished,
+                                job_id,
+                                1,
+                                images=images,
+                                result=result,
+                                generation_time=generation_time,
+                            )
+                        execution_start_timestamp = None
+                        execution_end_timestamp = None
+                        local_execution_start = None
 
                 elif msg["type"] in ("execution_cached", "executing", "progress"):
                     if self._active_job is not None and progress is not None:
@@ -416,6 +470,9 @@ class ComfyClient(Client):
                         pose_json = _extract_pose_json(msg)
                         if pose_json is not None:
                             result = pose_json
+
+                if msg["type"] == "execution_success":
+                    execution_end_timestamp = msg["data"].get("timestamp")
 
                 if msg["type"] == "execution_error":
                     if job := await self._get_active_job(msg["data"]["prompt_id"]):

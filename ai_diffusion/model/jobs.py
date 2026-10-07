@@ -11,7 +11,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from ..backend.api import InpaintMode, WorkflowKind
 from ..image import Bounds, ImageCollection
 from ..settings import settings
-from ..style import Style
+from ..style import SamplerPresets, Style
 from ..util import ensure
 
 if TYPE_CHECKING:
@@ -89,9 +89,17 @@ class JobParams:
     def set_style(self, style: Style, checkpoint: str):
         self.metadata["style"] = style.filename
         self.metadata["checkpoint"] = checkpoint
-        self.metadata["sampler"] = style.sampler
+        preset = SamplerPresets.instance()[style.sampler]
+        if settings.use_named_sampler_presets:
+            self.metadata["sampler"] = style.sampler
+        else:
+            self.metadata["sampler"] = preset.sampler
+        scheduler = style.scheduler or preset.scheduler
+        self.metadata["scheduler"] = scheduler
         self.metadata["steps"] = style.sampler_steps
         self.metadata["guidance"] = style.cfg_scale
+        self.metadata["refine"] = style.linked_refine_model or "none"
+
 
     def set_control(self, control: control.ControlLayerList):
         self.metadata["control"] = [
@@ -127,6 +135,7 @@ class Job:
     timestamp: datetime
     results: ImageCollection
     in_use: dict[int, bool]
+    generation_time: float | None
 
     def __init__(self, id: str | None, kind: JobKind, params: JobParams):
         self.id = id
@@ -135,6 +144,7 @@ class Job:
         self.timestamp = datetime.now(timezone.utc)
         self.results = ImageCollection()
         self.in_use = {}
+        self.generation_time = None
 
     def result_was_used(self, index: int):
         return self.in_use.get(index, False)

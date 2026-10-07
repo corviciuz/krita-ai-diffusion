@@ -10,11 +10,11 @@ from typing import Any, NamedTuple
 
 # Version identifier for all the resources defined here. This is used as the server version.
 # It usually follows the plugin version, but not all new plugin versions also require a server update.
+
 version = "1.54.0"
 
 comfy_url = "https://github.com/comfyanonymous/ComfyUI"
-comfy_version = "e9027f2b30f37bb3052714eb08fcf479542f4fc0"
-
+comfy_version = "87c32827017c50c6a629da941439015b4ad656e6"
 
 class CustomNode(NamedTuple):
     name: str
@@ -64,8 +64,8 @@ optional_custom_nodes = [
     CustomNode(
         "GGUF",
         "ComfyUI-GGUF",
-        "https://github.com/city96/ComfyUI-GGUF",
-        "01f8845bf30d89fff293c7bd50187bc59d9d53ea",
+        "https://github.com/molbal/ComfyUI-GGUF",
+        "c6e14d9c2475bb39a100f85d582e224c6e884f80",
         ["UnetLoaderGGUF", "DualCLIPLoaderGGUF"],
     ),
 ]
@@ -307,6 +307,9 @@ class UpscalerName(Enum):
     fast_2x = "OmniSR_X2_DIV2K.safetensors"
     fast_3x = "OmniSR_X3_DIV2K.safetensors"
     fast_4x = "OmniSR_X4_DIV2K.safetensors"
+    sharp_dejpeg = "2x-AnimeSharpV4_Fast_RCAN_PU.safetensors"
+    denoise_strong = "1x-Archivist_Soft.pth"
+    denoise_light = "2x_AniToon_RPLKSRS_242500.pth"
 
     @staticmethod
     def fast_x(x: int):

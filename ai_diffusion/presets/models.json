@@ -54,6 +54,26 @@
       ]
     },
     {
+      "id": "upscaler-sharp_dejpeg-all",
+      "name": "AnimeSharp V4 (Sharp/DeJPEG)",
+      "files": [
+        {
+          "path": "models/upscale_models/2x-AnimeSharpV4_Fast_RCAN_PU.safetensors",
+          "url": "https://github.com/Kim2091/Kim2091-Models/releases/download/2x-AnimeSharpV4/2x-AnimeSharpV4_Fast_RCAN_PU.safetensors"
+        }
+      ]
+    },
+    {
+      "id": "upscaler-denoise_light-all",
+      "name": "AniToon RPLKSRS (Denoise light)",
+      "files": [
+        {
+          "path": "models/upscale_models/2x_AniToon_RPLKSRS_242500.pth",
+          "url": "https://github.com/Sirosky/Upscale-Hub/releases/download/AniToon/2x_AniToon_RPLKSRS_242500.pth"
+        }
+      ]
+    },
+    {
       "id": "controlnet-inpaint-sd15",
       "name": "ControlNet Inpaint",
       "files": [
@@ -366,6 +386,16 @@
     }
   ],
   "upscale": [
+    {
+      "id": "upscaler-denoise_strong-all",
+      "name": "Archivist Soft (Denoise strong)",
+      "files": [
+        {
+          "path": "models/upscale_models/1x-Archivist_Soft.pth",
+          "url": "https://github.com/Loganavter/Archivist-Project-Denoiser/releases/download/v1.0/1x-Archivist_Soft.pth"
+        }
+      ]
+    },
     {
       "id": "upscaler-quality-all",
       "name": "HAT Super-Resolution (quality)",

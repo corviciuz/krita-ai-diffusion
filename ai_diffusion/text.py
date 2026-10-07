@@ -331,6 +331,7 @@ def create_img_metadata(params: JobParams):
     prompt = meta.get("prompt_final", meta.get("prompt", ""))
     neg_prompt = meta.get("negative_prompt_final", meta.get("negative_prompt", ""))
     sampler = meta.get("sampler", "")
+    scheduler = meta.get("scheduler", "")
     steps = meta.get("steps", 0)
     cfg_scale = meta.get("guidance", 0.0)
     model = meta.get("checkpoint", "Unknown")
@@ -360,10 +361,21 @@ def create_img_metadata(params: JobParams):
     lines.extend((
         full_prompt,
         f"Negative prompt: {neg_prompt}",
-        f"Steps: {steps}, Sampler: {sampler}, CFG scale: {cfg_scale}, Seed: {seed}, Size: {width}x{height}, Model hash: unknown, Model: {model}",
+        f"Steps: {steps}, Sampler: {sampler}, Scheduler: {scheduler}, CFG scale: {cfg_scale}, Seed: {seed}, Size: {width}x{height}, Model hash: unknown, Model: {model}",
     ))
 
     if strength is not None and not is_one(strength):
         lines[-1] += f", Denoising strength: {strength}"
 
     return "\n".join(lines)
+
+
+def create_prompt_xmp(metadata_text: str):
+    escaped = metadata_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return f'''<?xpacket begin="\\ufeff" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/">
+ <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description rdf:about="" xmlns:krita="https://krita.org/ns/ai-diffusion/" krita:parameters="{escaped}"/>
+ </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end="w"?>'''

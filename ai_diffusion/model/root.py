@@ -8,9 +8,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from krita import Krita
 from PyQt6.QtCore import QObject, pyqtSignal
 
-from .. import platform_tools, util
+from .. import eventloop, platform_tools, util
 from ..backend.client import ClientMessage
 from ..backend.comfy_client import ComfyClient
 from ..backend.server import Server, ServerState
@@ -46,6 +47,7 @@ class Root(QObject):
         self._files = FileLibrary.load()
         self._workflows = WorkflowCollection(self._connection)
         self._models: list[Root.PerDocument] = []
+        self._autostart_task: asyncio.Task | None = None
         self._null_model = DocumentModel(Document(), self._connection, self._workflows)
         self._recent = RecentlyUsedSync.from_settings()
         self._auto_update = AutoUpdate()
@@ -109,6 +111,15 @@ class Root(QObject):
             return model
         return self._null_model
 
+    def start_backend(
+        self, signal_server_change: Callable, allow_pending_document: bool = False
+    ):
+        if not allow_pending_document and Krita.instance().activeDocument() is None:
+            return None
+        if self._autostart_task is None:
+            self._autostart_task = eventloop.run(self.autostart(signal_server_change))
+        return self._autostart_task
+
     async def autostart(self, signal_server_change: Callable):
         connection = self._connection
         try:
@@ -116,7 +127,7 @@ class Root(QObject):
                 settings.server_mode is ServerMode.managed
                 and self._server.state is ServerState.stopped
             ):
-                url = await self._server.start()
+                url = await self._server.start(state_changed=signal_server_change)
                 signal_server_change()
                 client = ComfyClient(url)
                 await connection._connect(client)

@@ -52,6 +52,7 @@ from .server import ServerWidget
 from .settings_widgets import (
     ComboBoxSetting,
     FileListSetting,
+    SeedSetting,
     SettingsTab,
     SliderSetting,
     SpinBoxSetting,
@@ -723,7 +724,12 @@ class InterfaceSettings(SettingsTab):
             SwitchSetting(S._show_negative_prompt, (_("Show"), _("Hide")), self),
         )
         self.add("show_steps", SwitchSetting(S._show_steps, parent=self))
+        self.add(
+            "use_named_sampler_presets",
+            SwitchSetting(S._use_named_sampler_presets, parent=self),
+        )
         self.add("recent_styles_count", SpinBoxSetting(S._recent_styles_count, self, 0, 10))
+        self.add("startup_seed", SeedSetting(S._startup_seed, parent=self))
 
         self.add("tag_files", FileListSetting(S._tag_files, files=self._tag_files(), parent=self))
         tag_files = cast(FileListSetting, self._widgets["tag_files"])
@@ -753,9 +759,11 @@ class InterfaceSettings(SettingsTab):
         self.add("new_seed_after_apply", SwitchSetting(S._new_seed_after_apply, parent=self))
         self.add("save_image_format", ComboBoxSetting(S._save_image_format, parent=self))
         self.add("save_image_metadata", SwitchSetting(S._save_image_metadata, parent=self))
+        self.add(
+            "show_full_prompt_tooltip", SwitchSetting(S._show_full_prompt_tooltip, parent=self)
+        )
         self.add("debug_dump_workflow", SwitchSetting(S._debug_dump_workflow, parent=self))
-
-        self._widgets["save_image_format"].value_changed.connect(self._update_image_format_widgets)
+        self.add("show_generation_time", SwitchSetting(S._show_generation_time, parent=self))
 
         languages = [(lang.name, lang.id) for lang in Localization.available]
         self._widgets["language"].set_items(languages)
@@ -768,7 +776,6 @@ class InterfaceSettings(SettingsTab):
 
     def read(self):
         super().read()
-        self._update_image_format_widgets()
 
     def _tag_files(self) -> list[str]:
         plugin_tags_path = util.plugin_dir / "tags"
@@ -796,10 +803,6 @@ class InterfaceSettings(SettingsTab):
         translation.enabled = client is not None
         translation.set_items(languages)
         self.read()
-
-    def _update_image_format_widgets(self):
-        fmt: ImageFileFormat = self._widgets["save_image_format"].value
-        self._widgets["save_image_metadata"].enabled = fmt.extension == "png"
 
 
 class HistorySizeWidget(QWidget):
@@ -852,6 +855,18 @@ class PerformanceSettings(SettingsTab):
         self._history_storage = HistorySizeWidget(maximum=2000, step=5, parent=self)
         self._history_storage.value_changed.connect(self.write)
         self._layout.addWidget(self._history_storage)
+
+        self._history_format = ComboBoxSetting(Settings._history_format, parent=self)
+        self._history_format.value_changed.connect(self._change_history_format)
+        self._history_format.value_changed.connect(self.write)
+        self._layout.addWidget(self._history_format)
+
+        self._history_quality = SliderSetting(
+            Settings._history_quality, self, minimum=1, maximum=100, suffix="%"
+        )
+        self._history_quality.setEnabled(False)
+        self._history_quality.value_changed.connect(self.write)
+        self._layout.addWidget(self._history_quality)
 
         add_header(self._layout, Settings._performance_preset)
         self._device_info = QLabel(self)
@@ -928,6 +943,9 @@ class PerformanceSettings(SettingsTab):
         self._history_size.update_usage(root.active_model.jobs.memory_usage)
         self._history_storage.value = settings.history_storage
         self._history_storage.update_usage(root.get_active_model_used_storage() / (1024**2))
+        self._history_format.value = settings.history_format
+        self._change_history_format()
+        self._history_quality.value = settings.history_quality
         self._multi_threading.value = settings.multi_threading
         self._batch_size.value = settings.batch_size
         self._performance_preset.setCurrentIndex(
@@ -939,9 +957,15 @@ class PerformanceSettings(SettingsTab):
         self._dynamic_caching.value = settings.dynamic_caching
         self.update_client_info()
 
+    def _change_history_format(self):
+        fmt = self._history_format.value
+        self._history_quality.setEnabled(fmt.is_lossy)
+
     def _write(self):
         settings.history_size = self._history_size.value
         settings.history_storage = self._history_storage.value
+        settings.history_format = self._history_format.value
+        settings.history_quality = int(self._history_quality.value)
         settings.multi_threading = self._multi_threading.value
         settings.batch_size = int(self._batch_size.value)
         settings.resolution_multiplier = self._resolution_multiplier.value
@@ -1160,10 +1184,10 @@ class SettingsDialog(QDialog):
         type(self)._instance = self
 
         self.setWindowTitle(_("Configure Image Diffusion"))
-        self.setMinimumSize(QSize(960, 480))
+        self.setMinimumSize(QSize(1152, 480))
         if screen := QGuiApplication.screenAt(QCursor.pos()):
             size = screen.availableSize()
-            min_w = min(size.width(), QFontMetrics(self.font()).horizontalAdvance("M") * 100)
+            min_w = min(size.width(), QFontMetrics(self.font()).horizontalAdvance("M") * 120)
             self.resize(QSize(min_w, int(size.height() * 0.8)))
 
         layout = QHBoxLayout()

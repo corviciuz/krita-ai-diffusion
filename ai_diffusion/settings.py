@@ -77,6 +77,7 @@ class ImageFileFormat(Enum):
     png_small = "PNG"  # slow, smaller files
     webp = "WebP"
     webp_lossless = "WebP (lossless)"
+    avif = "AVIF"
     jpeg = "JPEG"
 
     @staticmethod
@@ -86,6 +87,8 @@ class ImageFileFormat(Enum):
             return ImageFileFormat.png_small
         if extension == ".webp":
             return ImageFileFormat.webp
+        if extension == ".avif":
+            return ImageFileFormat.avif
         if extension in {".jpg", ".jpeg"}:
             return ImageFileFormat.jpeg
         raise ValueError(f"Unsupported image extension: {extension}")
@@ -96,6 +99,8 @@ class ImageFileFormat(Enum):
             return "png"
         elif self in [ImageFileFormat.webp, ImageFileFormat.webp_lossless]:
             return "webp"
+        elif self is ImageFileFormat.avif:
+            return "avif"
         else:
             return "jpg"
 
@@ -109,16 +114,28 @@ class ImageFileFormat(Enum):
             return 80
         elif self == ImageFileFormat.webp_lossless:
             return 100
-        elif self == ImageFileFormat.jpeg:
+        elif self is ImageFileFormat.avif:
+            return 80
+        elif self in [ImageFileFormat.jpeg]:
             return 85
         else:
             return 85
+
+    @property
+    def is_lossy(self):
+        return self not in [
+            ImageFileFormat.png,
+            ImageFileFormat.png_small,
+            ImageFileFormat.webp_lossless,
+        ]
 
     @property
     def no_webp_fallback(self):
         if self is ImageFileFormat.webp_lossless:
             return ImageFileFormat.png
         if self is ImageFileFormat.webp:
+            return ImageFileFormat.jpeg
+        if self is ImageFileFormat.avif:
             return ImageFileFormat.jpeg
         return self
 
@@ -277,6 +294,22 @@ class Settings(QObject):
         _("When saving generated images from thumbnails, include metadata in the PNG"),
     )
 
+    show_full_prompt_tooltip: bool
+    _show_full_prompt_tooltip = Setting(
+        _("Show Full Prompt in Tooltip"),
+        False,
+        _(
+            "Show evaluated and final prompts in the result preview tooltip. "
+        ),
+    )
+
+    show_generation_time: bool
+    _show_generation_time = Setting(
+        _("Show Generation Time"),
+        False,
+        _("Display the generation time below generated image previews."),
+    )
+
     save_image_format: ImageFileFormat
     _save_image_format = Setting(
         _("Save Image Format"),
@@ -296,6 +329,13 @@ class Settings(QObject):
         "Save Image Quality (JPEG)",
         85,
         "Quality for JPEG encoding (0-100)",
+    )
+
+    save_image_quality_avif: int
+    _save_image_quality_avif = Setting(
+        "Save Image Quality (AVIF)",
+        80,
+        "Quality for AVIF encoding (0-100)",
     )
 
     save_image_file_name_format: str
@@ -367,11 +407,33 @@ class Settings(QObject):
     show_builtin_styles: bool
     _show_builtin_styles = Setting(_("Show pre-installed styles"), True)
 
+    lock_sampler_params: bool
+    _lock_sampler_params = Setting("Lock Sampler Steps/CFG", False)
+
+    live_lock_sampler_params: bool
+    _live_lock_sampler_params = Setting("Lock Live Sampler Steps/CFG", False)
+
+    use_named_sampler_presets: bool
+    _use_named_sampler_presets = Setting(
+        _("Use Named Sampler Presets"),
+        True,
+        _(
+            "Show descriptive preset names (e.g. 'Default - DPM++ 2M') instead of raw ComfyUI sampler names in the sampler list"
+        ),
+    )
+
     recent_styles_count: int
     _recent_styles_count = Setting(
         _("Recent Styles"),
         4,
         _("Number of most recently used styles to show at the top of the style list"),
+    )
+
+    startup_seed: int
+    _startup_seed = Setting(
+        _("Fixed Seed on Startup"),
+        0,
+        _("Seed assigned to newly created documents, with fixed seed enabled. 0 = disabled."),
     )
 
     recent_styles: list[str]
@@ -402,8 +464,15 @@ class Settings(QObject):
     history_format: ImageFileFormat
     _history_format = Setting(
         _("History Format"),
-        ImageFileFormat.webp,
+        ImageFileFormat.webp_lossless,
         _("File format for saving generated images in history"),
+    )
+
+    history_quality: int
+    _history_quality = Setting(
+        _("History Quality"),
+        80,
+        _("Compression quality for lossy history formats (AVIF, JPEG)"),
     )
 
     multi_threading: bool

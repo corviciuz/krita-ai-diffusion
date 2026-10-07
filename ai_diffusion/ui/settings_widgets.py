@@ -4,9 +4,10 @@ from enum import Enum
 from typing import Any
 
 from krita import DoubleSliderSpinBox
-from PyQt6.QtCore import QAbstractItemModel, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import QAbstractItemModel, QRegularExpression, QRegularExpressionMatch, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QIcon, QRegularExpressionValidator
 from PyQt6.QtWidgets import (
+    QAbstractSpinBox,
     QCheckBox,
     QComboBox,
     QFrame,
@@ -221,6 +222,65 @@ class FileListSetting(SettingWidget):
         self._update_label()
 
 
+class U64SpinBox(QAbstractSpinBox):
+    valueChanged = pyqtSignal(int)
+    _max = 2**64 - 1
+    _rx = QRegularExpression(r"0|[1-9][0-9]{0,19}")
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._value = 0
+        self.setGroupSeparatorShown(False)
+        self.lineEdit().textEdited.connect(self._sanitize_input)
+        self.editingFinished.connect(lambda: self.set_value(self._value))
+
+    def set_value(self, value: int):
+        if self._value != value:
+            self._value = value
+            self.valueChanged.emit(value)
+        self.lineEdit().setText(str(value))
+
+    def _sanitize_input(self):
+        text = self.lineEdit().text()
+        if text == "":
+            self._value = 0
+            return
+        match = QRegularExpressionMatch(self._rx.match(text))
+        if match.hasMatch():
+            self._value = min(int(match.captured(0)), self._max)
+
+    def stepBy(self, steps: int):
+        self.set_value(max(0, min(self._max, self._value + steps)))
+
+    def stepEnabled(self):
+        flags = QAbstractSpinBox.StepEnabledFlag.StepNone
+        if not self.isReadOnly():
+            if self._value < self._max:
+                flags |= QAbstractSpinBox.StepEnabledFlag.StepUpEnabled
+            if self._value > 0:
+                flags |= QAbstractSpinBox.StepEnabledFlag.StepDownEnabled
+        return flags
+
+
+class SeedSetting(SettingWidget):
+    def __init__(self, setting: Setting, parent=None):
+        super().__init__(setting, parent)
+
+        self._spinbox = U64SpinBox(self)
+        self._spinbox.setMinimumWidth(100)
+        self._spinbox.valueChanged.connect(self._notify_value_changed)
+        self._spinbox.editingFinished.connect(self._notify_value_changed)
+        self.set_widget(self._spinbox)
+
+    @property
+    def value(self) -> int:
+        return self._spinbox._value
+
+    @value.setter
+    def value(self, v: int):
+        self._spinbox.set_value(v)
+
+
 class SpinBoxSetting(SettingWidget):
     def __init__(self, setting: Setting, parent=None, minimum=0, maximum=100, step=1, suffix=""):
         super().__init__(setting, parent)
@@ -301,6 +361,10 @@ class ComboBoxSetting(SettingWidget):
             self._enum_type = type(setting.default)
             self.set_items(self._enum_type)
 
+        self._combo.setMinimumContentsLength(28)
+        self._combo.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
+        )
         self._combo.setMinimumWidth(230)
         self._combo.activated.connect(self._change_value)
         self.set_widget(self._combo)
@@ -314,6 +378,7 @@ class ComboBoxSetting(SettingWidget):
                 self._combo.addItem(e.value, e.name)
         else:
             for name in items:
+                disabled = isinstance(name, tuple) and name[-1] is False
                 if isinstance(name, str):
                     self._combo.addItem(name, name)
                 elif isinstance(name, Enum):
@@ -323,6 +388,10 @@ class ComboBoxSetting(SettingWidget):
                     self._combo.addItem(name[0], name[1])
                 elif len(name) == 3:
                     self._combo.addItem(name[2], name[0], name[1])
+                if disabled:
+                    item = self._combo.count() - 1
+                    model_item = self._combo.model().item(item)
+                    model_item.setEnabled(False)
         self._suppress_change = False
 
     def _change_value(self):

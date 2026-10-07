@@ -142,7 +142,7 @@ class QueuePopup(QMenu):
         self._seed_check = QCheckBox(self)
         self._seed_check.setText(_("Fixed"))
         self._seed_input.setMinimum(0)
-        self._seed_input.setMaximum(2**32 - 1)
+        self._seed_input.setMaximum(2**63 - 1)
         self._seed_input.setDecimals(0)
         self._seed_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self._seed_input.setToolTip(
@@ -540,6 +540,16 @@ class TextPromptWidget(QPlainTextEdit):
         self._highlighter = PromptHighlighter(self.document())
         self._resize_handle: ResizeHandle | None = None
 
+        self._paste_button = QToolButton(self)
+        self._paste_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        self._paste_button.setIcon(Krita.instance().icon("edit-paste"))
+        button_size = self.fontMetrics().height() + 6
+        self._paste_button.setFixedSize(button_size, button_size)
+        self._paste_button.setToolTip(_("Paste from clipboard"))
+        self._paste_button.setAutoRaise(True)
+        self._paste_button.clicked.connect(self._paste_from_clipboard)
+        self._paste_button.adjustSize()
+
         palette: QPalette = self.palette()
         self._base_color = palette.color(QPalette.ColorRole.Base)
         self.is_negative = is_negative
@@ -571,6 +581,22 @@ class TextPromptWidget(QPlainTextEdit):
         super().resizeEvent(e)
         if self._resize_handle:
             self._place_resize_handle()
+        self._place_paste_button()
+
+    def _place_paste_button(self):
+        size = self._paste_button.sizeHint()
+        self._paste_button.setGeometry(
+            self.width() - size.width() - 2,
+            self.height() - size.height() - 2,
+            size.width(),
+            size.height(),
+        )
+
+    def _paste_from_clipboard(self):
+        clipboard = QGuiApplication.clipboard()
+        if clipboard is not None and (text := clipboard.text()):
+            self.setPlainText(text)
+            self.move_cursor_to_end()
 
     def focusOutEvent(self, e):
         super().focusOutEvent(e)

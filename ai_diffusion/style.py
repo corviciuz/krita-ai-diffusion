@@ -43,6 +43,8 @@ class StyleSettings:
         _("Extensions to the checkpoint which expand its range based on additional training"),
     )
 
+    lora_folder = Setting(_("LoRA Folder"), "", _("Folder to pick new LoRAs from"))
+
     style_prompt = Setting(
         _("Style Prompt"),
         "best quality, highres",
@@ -97,6 +99,12 @@ class StyleSettings:
         _("Select an alternative style to use for for instruction-based editing"),
     )
 
+    linked_refine_model = Setting(
+        _("Linked Refine Model"),
+        "",
+        _("Upscaling model applied to generated images before display"),
+    )
+
     sampler = Setting(_("Sampler"), "Default - DPM++ 2M", _("The sampling strategy and scheduler"))
 
     sampler_steps = Setting(
@@ -115,6 +123,14 @@ class StyleSettings:
     live_sampler_steps = Setting(_("Sampler Steps"), 6, sampler_steps.desc)
     live_cfg_scale = Setting(_("Guidance Strength (CFG Scale)"), 1.8, cfg_scale.desc)
 
+    scheduler = Setting(
+        _("Scheduler"),
+        "",
+        _("Noise schedule for the sampler. Empty means use the scheduler of the selected sampler preset."),
+        items=None,
+    )
+    live_scheduler = Setting(_("Scheduler"), "", scheduler.desc, items=None)
+
 
 class Style(QObject):
     filepath: Path
@@ -123,6 +139,7 @@ class Style(QObject):
     architecture: Arch = StyleSettings.architecture.default
     checkpoints: list[str] = StyleSettings.checkpoints.default
     loras: list[dict[str, str | float | bool]]
+    lora_folder: str = StyleSettings.lora_folder.default
     style_prompt: str = StyleSettings.style_prompt.default
     negative_prompt: str = StyleSettings.negative_prompt.default
     vae: str = StyleSettings.vae.default
@@ -132,10 +149,13 @@ class Style(QObject):
     self_attention_guidance: bool = StyleSettings.self_attention_guidance.default
     preferred_resolution: int = StyleSettings.preferred_resolution.default
     linked_edit_style: str = StyleSettings.linked_edit_style.default
+    linked_refine_model: str = StyleSettings.linked_refine_model.default
     sampler: str = StyleSettings.sampler.default
+    scheduler: str = StyleSettings.scheduler.default
     sampler_steps: int = StyleSettings.sampler_steps.default
     cfg_scale: float = StyleSettings.cfg_scale.default
     live_sampler: str = StyleSettings.live_sampler.default
+    live_scheduler: str = StyleSettings.live_scheduler.default
     live_sampler_steps: int = StyleSettings.live_sampler_steps.default
     live_cfg_scale: float = StyleSettings.live_cfg_scale.default
 
@@ -360,6 +380,7 @@ class SamplerPreset(NamedTuple):
 class SamplerPresets:
     default_preset_file = plugin_dir / "presets" / "samplers.json"
     default_user_preset_file = user_data_dir / "presets" / "samplers.json"
+    _cache_file = user_data_dir / "cache" / "server_samplers.json"
 
     _preset_file: Path
     _user_preset_file: Path
@@ -397,19 +418,66 @@ class SamplerPresets:
             log.error(f"Failed to load sampler presets from {file}: {e}")
 
     def add_missing(self, name: str, steps: int, cfg_scale: float):
+        if not name:
+            return None
         if name in self._presets:
             return name
         if name in legacy_map:
             return legacy_map[name]
         if name in _sampler_map:
+            sampler_code = _sampler_map[name]
+            # Deduplication: return existing named preset with the same underlying
+            # sampler code instead of creating a duplicate raw-name entry.
+            for preset_name, preset in self._presets.items():
+                if not preset.hidden and preset.sampler == sampler_code:
+                    return preset_name
             self._presets[name] = SamplerPreset(
-                sampler=_sampler_map[name],
-                scheduler=_scheduler_map[name],
+                sampler=sampler_code,
+                scheduler=_scheduler_map.get(name, "karras"),
                 steps=steps,
                 cfg=cfg_scale,
             )
             return name
-        return None
+        # If the name is already an underlying ComfyUI sampler code covered by an
+        # existing named preset, only map to that preset if using named presets.
+        if settings.use_named_sampler_presets:
+            for preset_name, preset in self._presets.items():
+                if not preset.hidden and preset.sampler == name:
+                    return preset_name
+        # Raw ComfyUI sampler code stored directly (built-in, cached, or custom)
+        self._presets[name] = SamplerPreset(
+            sampler=name,
+            scheduler="karras",
+            steps=steps,
+            cfg=cfg_scale,
+        )
+        return name
+
+    def covered_sampler_codes(self) -> set[str]:
+        """Raw sampler codes already covered by at least one visible named preset."""
+        return {p.sampler for p in self._presets.values() if not p.hidden}
+
+    @classmethod
+    def load_server_cache(cls) -> tuple[list[str], list[str]]:
+        """Load cached server sampler/scheduler options from disk."""
+        try:
+            if cls._cache_file.exists():
+                data = json.loads(cls._cache_file.read_text())
+                return data.get("samplers", []), data.get("schedulers", [])
+        except Exception as e:
+            log.warning(f"Failed to load server sampler cache: {e}")
+        return [], []
+
+    @classmethod
+    def save_server_cache(cls, samplers: list[str], schedulers: list[str]) -> None:
+        """Persist server sampler/scheduler options to disk cache."""
+        try:
+            cls._cache_file.parent.mkdir(parents=True, exist_ok=True)
+            cls._cache_file.write_text(
+                json.dumps({"samplers": samplers, "schedulers": schedulers}, indent=2)
+            )
+        except Exception as e:
+            log.warning(f"Failed to save server sampler cache: {e}")
 
     def write_stub(self):
         if not self._user_preset_file.exists():
@@ -425,6 +493,22 @@ class SamplerPresets:
             return result
         if name in legacy_map:
             return self[legacy_map[name]]
+        if name in _sampler_map:
+            return SamplerPreset(
+                sampler=_sampler_map[name],
+                scheduler=_scheduler_map.get(name, "karras"),
+                steps=20,
+                cfg=7.0,
+            )
+        if " / " in name or "/" in name:
+            parts = [p.strip() for p in name.replace("/", " / ").split(" / ") if p.strip()]
+            if len(parts) == 2:
+                s_name, sch_name = parts[0], parts[1]
+                s_code = _sampler_map.get(s_name, s_name)
+                sch_code = _scheduler_map.get(sch_name, sch_name)
+                return SamplerPreset(sampler=s_code, scheduler=sch_code, steps=20, cfg=7.0)
+        if name:
+            return SamplerPreset(sampler=name, scheduler="karras", steps=20, cfg=7.0)
         raise KeyError(f"Sampler preset {name} not found")
 
     def items(self):
@@ -437,6 +521,63 @@ class SamplerPresets:
             )
 
         return [name for name, preset in self._presets.items() if is_visible(name, preset)]
+
+
+_comfy_schedulers = [
+    "normal",
+    "karras",
+    "exponential",
+    "sgm_uniform",
+    "simple",
+    "ddim_uniform",
+    "beta",
+    "linear_quadratic",
+    "kl_optimal",
+    "flux2",
+    "gits",
+]
+
+_comfy_samplers = [
+    "euler",
+    "euler_ancestral",
+    "euler_cfg_pp",
+    "euler_ancestral_cfg_pp",
+    "heun",
+    "heunpp2",
+    "dpm_2",
+    "dpm_2_ancestral",
+    "lms",
+    "dpm_fast",
+    "dpm_adaptive",
+    "dpmpp_2s_ancestral",
+    "dpmpp_2s_ancestral_cfg_pp",
+    "dpmpp_sde",
+    "dpmpp_sde_gpu",
+    "dpmpp_2m",
+    "dpmpp_2m_cfg_pp",
+    "dpmpp_2m_sde",
+    "dpmpp_2m_sde_gpu",
+    "dpmpp_3m_sde",
+    "dpmpp_3m_sde_gpu",
+    "ddpm",
+    "ddim",
+    "uni_pc",
+    "uni_pc_bh2",
+    "lcm",
+    "ipndm",
+    "ipndm_v",
+    "deis",
+    "res_multistep",
+    "res_multistep_cfg_pp",
+    "gradient_estimation",
+    "er_sde",
+    "seeds_2",
+    "seeds_3",
+]
+
+
+def scheduler_names():
+    return _comfy_schedulers
 
 
 legacy_map = {
@@ -460,25 +601,60 @@ _sampler_map = {
     "DPM++ 2M Karras": "dpmpp_2m",
     "DPM++ 2M SDE": "dpmpp_2m_sde_gpu",
     "DPM++ 2M SDE Karras": "dpmpp_2m_sde_gpu",
+    "DPM++ 2M SDE CPU": "dpmpp_2m_sde",
+    "DPM++ 3M SDE": "dpmpp_3m_sde_gpu",
+    "DPM++ 3M SDE CPU": "dpmpp_3m_sde",
+    "DPM++ SDE": "dpmpp_sde_gpu",
     "DPM++ SDE Karras": "dpmpp_sde_gpu",
+    "DPM++ 2S Ancestral": "dpmpp_2s_ancestral",
+    "DPM2": "dpm_2",
+    "DPM2 Ancestral": "dpm_2_ancestral",
+    "DPM Fast": "dpm_fast",
+    "DPM Adaptive": "dpm_adaptive",
+    "UniPC": "uni_pc",
     "UniPC BH2": "uni_pc_bh2",
     "LCM": "lcm",
     "Lightning": "euler",
     "Euler": "euler",
+    "Euler Ancestral": "euler_ancestral",
     "Euler a": "euler_ancestral",
+    "Heun": "heun",
+    "Heun++2": "heunpp2",
+    "LMS": "lms",
+    "RES Multistep": "res_multistep",
+    "RES Multistep Ancestral": "res_multistep_ancestral",
+    "RES Multistep CFG++": "res_multistep_cfg_pp",
+    "iPNDM": "ipndm",
+    "iPNDM v": "ipndm_v",
+    "DEIS": "deis",
+    "DDPM": "ddpm",
+    "ER SDE": "er_sde",
+    "Gradien Estimation": "gradient_estimation",
 }
 _scheduler_map = {
     "DDIM": "ddim_uniform",
+    "DDIM Uniform": "ddim_uniform",
     "DPM++ 2M": "normal",
     "DPM++ 2M Karras": "karras",
     "DPM++ 2M SDE": "normal",
     "DPM++ 2M SDE Karras": "karras",
     "DPM++ SDE Karras": "karras",
-    "UniPC BH2": "ddim_uniform",
+    "UniPC BH2": "gits",
     "LCM": "sgm_uniform",
     "Lightning": "sgm_uniform",
     "Euler": "normal",
     "Euler a": "normal",
+    "Normal": "normal",
+    "Karras": "karras",
+    "Exponential": "exponential",
+    "SGM Uniform": "sgm_uniform",
+    "Simple": "simple",
+    "Beta": "beta",
+    "Linear Quadratic": "linear_quadratic",
+    "KL Optimal": "kl_optimal",
+    "GITS": "gits",
+    "DDPM": "ddpm",
+    "Flux 2": "flux2",
 }
 _sampler_presets_stub = """// Custom sampler presets - add your own sampler presets here!
 // https://docs.interstice.cloud/samplers
