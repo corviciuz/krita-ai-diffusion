@@ -57,7 +57,14 @@ def test_resource_ids_exist():
             Arch.anima,
             Arch.ernie,
             Arch.krea2,
+            Arch.moss,
         ):
             continue  # no model downloads yet
         model = res.find_resource(resource_id)
         assert model is not None, f"Resource ID {resource_id} not found"
+
+
+def test_moss_arch_detection():
+    assert Arch.from_string("moss") is Arch.moss
+    assert Arch.from_string("unknown", filename="moss-v1.safetensors") is Arch.moss
+    assert Arch.moss.text_encoders == ["qwen_35_9b"]

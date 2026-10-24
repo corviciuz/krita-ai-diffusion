@@ -4,6 +4,8 @@ from pathlib import Path
 import pytest
 
 from ai_diffusion.backend.comfy_workflow import ComfyObjectInfo, ComfyWorkflow
+from ai_diffusion.backend.resources import Arch
+from ai_diffusion.image import Extent
 
 
 @pytest.fixture(scope="module")
@@ -122,3 +124,10 @@ def test_model_attention_backend():
         "model": "mock_model",
         "attention": "comfy kitchen attention",
     }
+
+
+def test_moss_empty_latent():
+    w = ComfyWorkflow()
+    out = w.empty_latent_image(Extent(1024, 768), Arch.moss)
+    assert w.node(out.node).type == "EmptyFlux2LatentImage"
+    assert w.node(out.node).inputs == {"width": 1024, "height": 768, "batch_size": 1}
