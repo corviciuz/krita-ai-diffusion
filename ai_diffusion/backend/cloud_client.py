@@ -485,6 +485,7 @@ def apply_limits(work: WorkflowInput, features: ClientFeatures):
     if work.models:
         work.models.self_attention_guidance = False
         work.models.attention_backend = "no"
+        work.models.prompt_enhance = False
     if work.conditioning:
         work.conditioning.control = work.conditioning.control[: features.max_control_layers]
         for region in work.conditioning.regions:

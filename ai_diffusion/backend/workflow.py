@@ -356,6 +356,7 @@ class TextPrompt:
         clip: Clip,
         style_prompt: str | None = None,
         images: list[Output] | None = None,
+        enhance: bool = False,
     ):
         if self._output is None or self._clip != clip:
             text = self.prepare(w, style_prompt)
@@ -366,6 +367,9 @@ class TextPrompt:
             elif clip.arch is Arch.qwen_e_p and images:
                 self._output = w.text_encode_qwen_image_edit_plus(clip.model, None, images, text)
             else:
+                if enhance and text and clip.arch.supports_prompt_enhance:
+                    query = f"Describe in detailed visual terms for image generation: {text}"
+                    text = w.text_generate(clip.model, query)
                 self._output = w.clip_text_encode(clip.model, text)
 
             if text == "" and clip.arch.is_sdxl_like:
@@ -533,6 +537,7 @@ def encode_prompt(
     regions: Output | None,
     image: Output | None = None,
     tiled_vae: bool = False,
+    prompt_enhance: bool = False,
 ):
     """Runs text and image encoder (VLM) to produce embeddings from prompt and reference images.
     Returns positive/negative conditioning, and sometimes the VAE-encoded `image` for reuse.
@@ -548,7 +553,7 @@ def encode_prompt(
             prompt = w.text_encode_qwen2(clip.model, vae, ref_images, positive, negative)
             return prompt, None  # note: latent returned by this node is always noise/empty
         else:
-            positive = cond.positive.encode(w, clip, cond.style_prompt, ref_images)
+            positive = cond.positive.encode(w, clip, cond.style_prompt, ref_images, enhance=prompt_enhance)
             negative = cond.negative.encode(w, clip) if cond.negative else positive
             prompt = ConditioningOutput(positive, negative)
             return apply_reference_conditioning(w, prompt, image, cond, vae, arch, tiled_vae)
@@ -893,7 +898,9 @@ def generate(
     model, regions = apply_attention_mask(w, model, cond, clip, extent.initial)
     model = apply_regional_ip_adapter(w, model, cond.regions, extent.initial, models)
     latent = w.empty_latent_image(extent.initial, models.arch, misc.batch_count)
-    prompt, _ = encode_prompt(w, cond, clip, vae, regions, None, checkpoint.tiled_vae)
+    prompt, _ = encode_prompt(
+        w, cond, clip, vae, regions, None, checkpoint.tiled_vae, checkpoint.prompt_enhance
+    )
     model, prompt = apply_control(w, model, prompt, cond.all_control, extent.initial, vae, models)
     sample_params = _sampler_params(sampling, extent.initial)
     out_latent = w.sampler_custom_advanced(model, prompt, latent, models.arch, **sample_params)

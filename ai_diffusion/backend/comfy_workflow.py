@@ -607,6 +607,23 @@ class ComfyWorkflow:
     def clip_text_encode(self, clip: Output, text: str | Output):
         return self.add("CLIPTextEncode", 1, clip=clip, text=text)
 
+    def text_generate(
+        self,
+        clip: Output,
+        prompt: str | Output,
+        max_length: int = 256,
+    ):
+        return self.add(
+            "TextGenerate",
+            output_count=2,
+            clip=clip,
+            prompt=prompt,
+            max_length=max_length,
+            sampling_mode="off",
+            thinking=False,
+            use_default_template=True,
+        )[0]
+
     def conditioning_area(self, conditioning: Output, area: Bounds, strength=1.0):
         return self.add(
             "ConditioningSetArea",

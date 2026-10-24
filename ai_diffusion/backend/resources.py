@@ -200,6 +200,10 @@ class Arch(Enum):
         return self in [Arch.sd15, Arch.sdxl, Arch.illu, Arch.illu_v, Arch.anima]
 
     @property
+    def supports_prompt_enhance(self):
+        return self in [Arch.moss, Arch.krea2]
+
+    @property
     def supports_cfg(self):
         return self not in [Arch.flux, Arch.flux_k]
 

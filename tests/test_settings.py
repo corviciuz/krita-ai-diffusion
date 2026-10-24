@@ -82,10 +82,13 @@ def test_styles(tmp_path_factory):
     assert styles.find(style.filename) == loaded_style
     assert style_is_default(loaded_style)
     assert loaded_style.attention_backend == "no"
+    assert loaded_style.prompt_enhance is False
     style.attention_backend = "comfy kitchen attention"
+    style.prompt_enhance = True
     style.save()
     loaded_updated = Style.load(style.filepath)
     assert loaded_updated and loaded_updated.attention_backend == "comfy kitchen attention"
+    assert loaded_updated and loaded_updated.prompt_enhance is True
 
 
 def test_style_folders(tmp_path_factory):

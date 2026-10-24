@@ -131,3 +131,13 @@ def test_moss_empty_latent():
     out = w.empty_latent_image(Extent(1024, 768), Arch.moss)
     assert w.node(out.node).type == "EmptyFlux2LatentImage"
     assert w.node(out.node).inputs == {"width": 1024, "height": 768, "batch_size": 1}
+
+
+def test_text_generate():
+    w = ComfyWorkflow()
+    out = w.text_generate("mock_clip", "cat")  # type: ignore
+    assert w.node(out.node).type == "TextGenerate"
+    assert w.node(out.node).inputs["clip"] == "mock_clip"
+    assert w.node(out.node).inputs["prompt"] == "cat"
+    assert w.node(out.node).inputs["max_length"] == 256
+    assert w.node(out.node).inputs["sampling_mode"] == "off"

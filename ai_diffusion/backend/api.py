@@ -67,6 +67,7 @@ class CheckpointInput:
     dynamic_caching: bool = False
     tiled_vae: bool = False
     attention_backend: str = "no"
+    prompt_enhance: bool = False
 
 
 @dataclass

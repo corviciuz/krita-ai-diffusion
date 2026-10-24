@@ -1056,6 +1056,11 @@ class StylePresets(SettingsTab):
             ComboBoxSetting(StyleSettings.attention_backend, parent=self),
         )
 
+        self._prompt_enhance = add(
+            "prompt_enhance",
+            SwitchSetting(StyleSettings.prompt_enhance, parent=self),
+        )
+
         self._checkpoint_advanced_widgets = [
             self._arch_select,
             self._vae,
@@ -1064,6 +1069,7 @@ class StylePresets(SettingsTab):
             self._zsnr,
             self._sag,
             self._attention_backend,
+            self._prompt_enhance,
         ]
         for widget in self._checkpoint_advanced_widgets:
             widget.indent = 1
@@ -1326,6 +1332,7 @@ class StylePresets(SettingsTab):
         self._clip_skip.enabled = arch.supports_clip_skip and self.current_style.clip_skip > 0
         self._zsnr.enabled = arch.supports_attention_guidance
         self._sag.enabled = arch.supports_attention_guidance
+        self._prompt_enhance.enabled = arch.supports_prompt_enhance
 
     def _read_style(self, style: Style):
         with self._write_guard:

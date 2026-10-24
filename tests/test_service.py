@@ -219,6 +219,7 @@ def test_features_limits():
     assert work.conditioning and len(work.conditioning.regions[0].control) == 2
     assert work.models and work.models.self_attention_guidance is False
     assert work.models and work.models.attention_backend == "No"
+    assert work.models and work.models.prompt_enhance is False
 
 
 @qtapp

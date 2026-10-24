@@ -96,6 +96,12 @@ class StyleSettings:
         items=["no", "pytorch attention", "comfy kitchen attention"],
     )
 
+    prompt_enhance = Setting(
+        _("Prompt Enhancer"),
+        False,
+        _("Use LLM text encoder to expand brief prompts into detailed descriptions"),
+    )
+
     preferred_resolution = Setting(
         _("Preferred Resolution"), 0, _("Image resolution the checkpoint was trained on")
     )
@@ -155,6 +161,7 @@ class Style(QObject):
     rescale_cfg: float = StyleSettings.rescale_cfg.default
     self_attention_guidance: bool = StyleSettings.self_attention_guidance.default
     attention_backend: str = StyleSettings.attention_backend.default
+    prompt_enhance: bool = StyleSettings.prompt_enhance.default
     preferred_resolution: int = StyleSettings.preferred_resolution.default
     linked_edit_style: str = StyleSettings.linked_edit_style.default
     linked_refine_model: str = StyleSettings.linked_refine_model.default
@@ -255,6 +262,7 @@ class Style(QObject):
             loras=[LoraInput.from_dict(l) for l in self.loras if l.get("enabled", True)],
             self_attention_guidance=self.self_attention_guidance,
             attention_backend=self.attention_backend,
+            prompt_enhance=self.prompt_enhance,
         )
 
     def get_steps(self, is_live: bool) -> tuple[int, int]:
