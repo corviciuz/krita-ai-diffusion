@@ -1051,6 +1051,11 @@ class StylePresets(SettingsTab):
             SwitchSetting(StyleSettings.self_attention_guidance, parent=self),
         )
 
+        self._attention_backend = add(
+            "attention_backend",
+            ComboBoxSetting(StyleSettings.attention_backend, parent=self),
+        )
+
         self._checkpoint_advanced_widgets = [
             self._arch_select,
             self._vae,
@@ -1058,6 +1063,7 @@ class StylePresets(SettingsTab):
             self._resolution_spin,
             self._zsnr,
             self._sag,
+            self._attention_backend,
         ]
         for widget in self._checkpoint_advanced_widgets:
             widget.indent = 1

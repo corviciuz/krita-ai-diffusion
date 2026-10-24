@@ -205,7 +205,9 @@ def test_features_limits():
     ]
     work = WorkflowInput(
         WorkflowKind.generate,
-        models=CheckpointInput("ckpt", self_attention_guidance=True),
+        models=CheckpointInput(
+            "ckpt", self_attention_guidance=True, attention_backend="pytorch attention"
+        ),
         conditioning=ConditioningInput(
             "prompt",
             control=control_layers,
@@ -216,6 +218,7 @@ def test_features_limits():
     assert work.conditioning and len(work.conditioning.control) == 2
     assert work.conditioning and len(work.conditioning.regions[0].control) == 2
     assert work.models and work.models.self_attention_guidance is False
+    assert work.models and work.models.attention_backend == "No"
 
 
 @qtapp

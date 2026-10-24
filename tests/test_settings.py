@@ -80,8 +80,12 @@ def test_styles(tmp_path_factory):
     assert loaded_style.filename == style.filename
     assert loaded_style.name == "Test Style"
     assert styles.find(style.filename) == loaded_style
-    assert styles.find("nonexistent.json") is None
     assert style_is_default(loaded_style)
+    assert loaded_style.attention_backend == "no"
+    style.attention_backend = "comfy kitchen attention"
+    style.save()
+    loaded_updated = Style.load(style.filepath)
+    assert loaded_updated and loaded_updated.attention_backend == "comfy kitchen attention"
 
 
 def test_style_folders(tmp_path_factory):

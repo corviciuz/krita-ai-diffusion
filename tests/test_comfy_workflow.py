@@ -112,3 +112,13 @@ def test_defaults_legacy_combo(info: ComfyObjectInfo):
     assert inputs["images"] == "img"
     assert inputs["format"] == "PNG"
     assert set(inputs.keys()) == {"images", "format"}
+
+
+def test_model_attention_backend():
+    w = ComfyWorkflow()
+    out = w.model_attention_backend("mock_model", "comfy kitchen attention")  # type: ignore
+    assert w.node(out.node).type == "ModelAttentionBackend"
+    assert w.node(out.node).inputs == {
+        "model": "mock_model",
+        "attention": "comfy kitchen attention",
+    }
