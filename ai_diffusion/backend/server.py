@@ -450,7 +450,7 @@ class Server:
             if state_changed is not None:
                 state_changed()
 
-            args = ["-su", "main.py"]
+            args = ["-su", "main.py", "--disable-partner-nodes", "--disable-auto-launch"]
             env = {}
             if self.backend is ServerBackend.cpu:
                 args.append("--cpu")

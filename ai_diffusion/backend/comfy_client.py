@@ -529,15 +529,16 @@ class ComfyClient(Client):
             log.info(f"Inspecting models at {self.url}/api/etn/model_info/{folder_name}")
             start, timeout = time(), 600
             offset, total = 0, 100
+            chunk_size = 64
             while offset < total and (time() - start) < timeout:
-                r = await self._get(f"api/etn/model_info/{folder_name}?offset={offset}&limit=8")
+                r = await self._get(f"api/etn/model_info/{folder_name}?offset={offset}&limit={chunk_size}")
                 if "_meta" not in r:  # server doesn't support pagination
                     yield (Client.DiscoverStatus(folder_name, len(r), len(r)), r)
                     return
                 total = r["_meta"]["total"]
                 del r["_meta"]
                 yield (Client.DiscoverStatus(folder_name, offset + len(r), total), r)
-                offset += 8
+                offset += chunk_size
             if offset < total:
                 log.warning(f"Timeout while inspecting models, received {offset}/{total} entries")
         except NetworkError as e:
