@@ -613,7 +613,7 @@ class ComfyWorkflow:
         prompt: str | Output,
         max_length: int = 256,
     ):
-        return self.add(
+        return self.add_cached(
             "TextGenerate",
             output_count=2,
             clip=clip,

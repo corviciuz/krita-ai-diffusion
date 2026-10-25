@@ -141,3 +141,5 @@ def test_text_generate():
     assert w.node(out.node).inputs["prompt"] == "cat"
     assert w.node(out.node).inputs["max_length"] == 256
     assert w.node(out.node).inputs["sampling_mode"] == "off"
+    out2 = w.text_generate("mock_clip", "cat")  # type: ignore
+    assert out.node == out2.node

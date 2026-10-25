@@ -201,7 +201,7 @@ class Arch(Enum):
 
     @property
     def supports_prompt_enhance(self):
-        return self in [Arch.moss, Arch.krea2]
+        return True
 
     @property
     def supports_cfg(self):
