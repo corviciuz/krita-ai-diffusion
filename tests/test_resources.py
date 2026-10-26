@@ -58,6 +58,7 @@ def test_resource_ids_exist():
             Arch.ernie,
             Arch.krea2,
             Arch.moss,
+            Arch.fibo2,
         ):
             continue  # no model downloads yet
         model = res.find_resource(resource_id)
@@ -68,3 +69,10 @@ def test_moss_arch_detection():
     assert Arch.from_string("moss") is Arch.moss
     assert Arch.from_string("unknown", filename="moss-v1.safetensors") is Arch.moss
     assert Arch.moss.text_encoders == ["qwen_35_9b"]
+
+
+def test_fibo2_arch_detection():
+    assert Arch.from_string("fibo2") is Arch.fibo2
+    assert Arch.from_string("unknown", filename="fibo2_dev.safetensors") is Arch.fibo2
+    assert Arch.from_string("unknown", filename="fibo2_turbo.safetensors") is Arch.fibo2
+    assert Arch.fibo2.text_encoders == ["qwen_3vl_4b"]
