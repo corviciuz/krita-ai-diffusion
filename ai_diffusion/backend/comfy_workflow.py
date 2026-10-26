@@ -733,6 +733,31 @@ class ComfyWorkflow:
         positive, negative, _ = self.add("TextEncodeQwenImage21", 3, **args)
         return ConditioningOutput(positive, negative)
 
+    def text_encode_fibo2(
+        self,
+        clip: Output,
+        vae: Output | None,
+        images: list[Output] | None,
+        positive: str | Output,
+        negative: str | Output,
+        width: int = 0,
+        height: int = 0,
+    ):
+        images = [] if images is None else images
+        assert len(images) <= 4, "Fibo 2.0 supports a maximum of 4 reference images"
+        args = {
+            "clip": clip,
+            "vae": vae,
+            "prompt": positive,
+            "negative_prompt": negative,
+            "width": width,
+            "height": height,
+        }
+        for i, image in enumerate(images):
+            args[f"images.image_{i + 1}"] = image
+        positive, negative, _ = self.add("TextEncodeFibo2", 3, **args)
+        return ConditioningOutput(positive, negative)
+
     def background_region(self, conditioning: Output):
         return self.add("ETN_BackgroundRegion", 1, conditioning=conditioning)
 
@@ -1113,6 +1138,24 @@ class ComfyWorkflow:
             reference=reference,
             exclude_mask=exclude_mask,
             strength=strength,
+        )
+
+    def difference_mask(
+        self,
+        image1: Output,
+        image2: Output,
+        threshold: float = 0.08,
+        grow: int = 8,
+        blur: int = 15,
+    ):
+        return self.add(
+            "INPAINT_DifferenceMask",
+            1,
+            image1=image1,
+            image2=image2,
+            threshold=threshold,
+            grow=grow,
+            blur=blur,
         )
 
     def crop_mask(self, mask: Output, bounds: Bounds):

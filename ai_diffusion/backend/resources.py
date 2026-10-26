@@ -94,7 +94,7 @@ class Arch(Enum):
     ernie = "ERNIE Image"
     krea2 = "Krea 2"
     moss = "MOSS"
-    fibo2 = "Fibo 2"
+    fibo2 = "Fibo 2.0"
 
     auto = "Automatic"
     all = "All"
@@ -447,7 +447,7 @@ class ControlMode(Enum):
 
     def can_substitute_instruction(self, arch: Arch):
         """True if this control mode is covered by instruction-following edit models."""
-        if arch.is_flux2 or arch is Arch.qwen2:
+        if arch.is_flux2 or arch is Arch.qwen2 or arch is Arch.fibo2:
             return self in [
                 ControlMode.style,
                 ControlMode.composition,
