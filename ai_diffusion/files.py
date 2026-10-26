@@ -254,6 +254,7 @@ class FileFilter(QSortFilterProxyModel):
         self.setSourceModel(source)
         self.setSortCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         self.sort(0)
+        source.dataChanged.connect(self.invalidateFilter)
 
     @property
     def available_only(self):

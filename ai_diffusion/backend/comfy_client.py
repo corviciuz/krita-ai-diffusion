@@ -253,6 +253,12 @@ class ComfyClient(Client):
     async def discover_models(self, refresh: bool):
         if refresh:
             nodes = ComfyObjectInfo(await self._get("object_info"))
+            try:
+                lora_node = await self._get("object_info/LoraLoader")
+                if "LoraLoader" in lora_node:
+                    nodes.nodes["LoraLoader"] = lora_node["LoraLoader"]
+            except Exception:
+                pass
         else:
             nodes = self.models.node_inputs
 
@@ -585,6 +591,7 @@ class ComfyClient(Client):
 
         models.vae = nodes.options("VAELoader", "vae_name")
         models.loras = nodes.options("LoraLoader", "lora_name")
+        models.node_inputs = nodes
 
         if "UnetLoaderGGUF" in nodes:
             for name in nodes.options("UnetLoaderGGUF", "unet_name"):

@@ -451,6 +451,7 @@ class LoraList(QWidget):
 
         root.files.loras.rowsInserted.connect(self._collect_filters)
         root.files.loras.rowsRemoved.connect(self._collect_filters)
+        root.files.loras.dataChanged.connect(self._collect_filters)
         self._collect_filters()
 
     def _add_item(self, lora: dict | File | None = None):
