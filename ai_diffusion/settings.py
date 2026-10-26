@@ -268,6 +268,13 @@ class Settings(QObject):
         _("Match peripheral colors and brightness with existing content. Requires a selection."),
     )
 
+    difference_mask: bool
+    _difference_mask = Setting(
+        _("Difference Mask"),
+        False,
+        _("Automatically generate a transparency mask based on visual differences when editing"),
+    )
+
     nsfw_filter: float
     _nsfw_filter = Setting(
         _("NSFW Filter"), 0.0, _("Attempt to filter out images with explicit content")

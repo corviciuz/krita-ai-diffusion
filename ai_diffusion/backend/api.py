@@ -199,6 +199,7 @@ class WorkflowInput:
     control_mode: ControlMode = ControlMode.reference
     batch_count: int = 1
     color_match: float = 0.0
+    difference_mask: bool = False
     nsfw_filter: float = 0.0
     custom_workflow: CustomWorkflowInput | None = None
 

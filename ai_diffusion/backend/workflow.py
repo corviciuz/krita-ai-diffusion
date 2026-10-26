@@ -897,6 +897,7 @@ class MiscParams(NamedTuple):
     color_match: float
     nsfw_filter: float
     refine_model: str = ""
+    difference_mask: bool = False
 
 
 def generate(
@@ -1227,7 +1228,7 @@ def refine(
     ref_image = scale_to_target(extent, w, orig_image, models)
     if misc.color_match > 0:
         out_image = w.color_match(out_image, ref_image, None, misc.color_match)
-    if cond.edit_reference:
+    if cond.edit_reference and misc.difference_mask:
         diff_mask = w.difference_mask(out_image, ref_image, threshold=0.08, grow=8, blur=15)
         out_image = w.apply_mask(out_image, diff_mask)
     w.send_image(out_image)
@@ -1812,6 +1813,7 @@ def prepare(
     i.batch_count = 1 if is_live else i.batch_count
     i.images.layer_count = layer_count if arch is Arch.qwen_l else 1
     i.color_match = 1.0 if settings.color_match else 0.0
+    i.difference_mask = settings.difference_mask
     i.nsfw_filter = settings.nsfw_filter
     return i
 
@@ -1854,6 +1856,7 @@ def create(i: WorkflowInput, models: ClientModels, comfy_mode=ComfyRunMode.serve
         if i.kind in [WorkflowKind.generate, WorkflowKind.refine, WorkflowKind.refine_region]
         and i.upscale
         else "",
+        difference_mask=i.difference_mask,
     )
 
     if i.kind is WorkflowKind.generate:
