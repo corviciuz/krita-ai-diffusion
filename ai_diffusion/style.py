@@ -552,6 +552,10 @@ _comfy_schedulers = [
     "kl_optimal",
     "flux2",
     "gits",
+    "radiance_shift",
+    "bong_tangent",
+    "sgm_tangent",
+    "sbb_hybrid",
 ]
 
 _comfy_samplers = [
@@ -586,6 +590,7 @@ _comfy_samplers = [
     "deis",
     "res_multistep",
     "res_multistep_cfg_pp",
+    "res_2m",
     "gradient_estimation",
     "er_sde",
     "seeds_2",
