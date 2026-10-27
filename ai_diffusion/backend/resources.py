@@ -81,6 +81,7 @@ class Arch(Enum):
     flux_k = "Flux Kontext"
     flux2_4b = "Flux 2 Klein 4B"
     flux2_9b = "Flux 2 Klein 9B"
+    flux3 = "Flux 3"
     illu = "Illustrious"
     illu_v = "Illustrious v-prediction"
     chroma = "Chroma"
@@ -118,6 +119,8 @@ class Arch(Enum):
             return Arch.flux2_4b
         if string == "flux2_9b" or (string == "flux2" and model_type == "klein-9b"):
             return Arch.flux2_9b
+        if string == "flux3" or (string == "unknown" and "flux3" in filename):
+            return Arch.flux3
         if string == "illu":
             return Arch.illu
         if string == "illu_v":
@@ -235,7 +238,7 @@ class Arch(Enum):
 
     @property
     def is_flux2(self):
-        return self in [Arch.flux2_4b, Arch.flux2_9b]
+        return self in [Arch.flux2_4b, Arch.flux2_9b, Arch.flux3]
 
     @property
     def is_qwen_like(self):
@@ -274,6 +277,8 @@ class Arch(Enum):
                 return ["qwen_35_9b"]
             case Arch.fibo2:
                 return ["qwen_3vl_4b"]
+            case Arch.flux3:
+                return ["qwen_3vl_4b"]
             case _:
                 raise ValueError(f"Unsupported architecture: {self}")
 
@@ -287,6 +292,7 @@ class Arch(Enum):
             Arch.flux_k,
             Arch.flux2_4b,
             Arch.flux2_9b,
+            Arch.flux3,
             Arch.illu,
             Arch.illu_v,
             Arch.chroma,
@@ -862,6 +868,7 @@ search_paths: dict[str, list[str]] = {
     resource_id(ResourceKind.vae, Arch.flux_k, "default"): ["flux-", "flux_", "flux/", "flux1", "ae.s"],
     resource_id(ResourceKind.vae, Arch.flux2_4b, "default"): ["flux2"],
     resource_id(ResourceKind.vae, Arch.flux2_9b, "default"): ["flux2"],
+    resource_id(ResourceKind.vae, Arch.flux3, "default"): ["flux2"],
     resource_id(ResourceKind.vae, Arch.chroma, "default"): ["flux-", "flux_", "flux/", "flux1", "ae.s"],
     resource_id(ResourceKind.vae, Arch.qwen, "default"): ["qwen"],
     resource_id(ResourceKind.vae, Arch.qwen_e, "default"): ["qwen"],
@@ -909,6 +916,8 @@ required_resource_ids = {
     ResourceId(ResourceKind.vae, Arch.zimage, "default"),
     ResourceId(ResourceKind.vae, Arch.flux2_4b, "default"),
     ResourceId(ResourceKind.vae, Arch.flux2_9b, "default"),
+    ResourceId(ResourceKind.text_encoder, Arch.flux3, "qwen_3vl_4b"),
+    ResourceId(ResourceKind.vae, Arch.flux3, "default"),
     ResourceId(ResourceKind.text_encoder, Arch.ernie, "ministral"),
     ResourceId(ResourceKind.vae, Arch.ernie, "default"),
     ResourceId(ResourceKind.text_encoder, Arch.krea2, "qwen_3vl_4b"),

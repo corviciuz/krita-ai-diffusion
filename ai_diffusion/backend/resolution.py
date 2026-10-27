@@ -155,6 +155,7 @@ class CheckpointResolution(NamedTuple):
                 Arch.sd15: (512, 768, 512**2, 512 * 768),
                 Arch.sdxl: (640, 1280, 800**2, 1024**2),
                 Arch.sd3: (512, 1536, 512**2, 1536**2),
+                Arch.flux3: (256, 4096, 256**2, 4096**2),
             }
             default = (256, 2048, 512**2, 2048**2)
             if inpaint:
@@ -194,7 +195,7 @@ def prepare_diffusion_input(
     mult = diffusion_multiple(arch)
 
     # The checkpoint may require a different resolution than what is requested.
-    if arch.is_edit:
+    if arch.supports_edit:
         downscale = False  # Never use 2-pass generation for edit models
 
     min_size, max_size, min_scale, max_scale = CheckpointResolution.compute(
