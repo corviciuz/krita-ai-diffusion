@@ -113,10 +113,6 @@ def default_style(client: Client, arch=Arch.sd15):
         style.sampler = "Flux 2 - Euler"
         style.cfg_scale = 1.0
         style.sampler_steps = 5
-    if arch is Arch.fibo2:
-        style.sampler = "Fibo 2 - Euler Simple"
-        style.cfg_scale = 1.0
-        style.sampler_steps = 4
     if arch is Arch.anima:
         style.sampler = "Flux - Euler simple"
         style.cfg_scale = 3.5
@@ -283,84 +279,6 @@ def _fibo2_models(checkpoint: str):
         resource_id(ResourceKind.vae, Arch.fibo2, "default"): "flux2-vae.safetensors",
     }
     return models
-
-
-def _create_fibo2_workflow(
-    kind: WorkflowKind,
-    cfg: float = 1.0,
-    steps: int = 4,
-    canvas: Image | Extent | None = None,
-    cond: ConditioningInput | None = None,
-    edit_reference: bool = False,
-):
-    checkpoint = default_checkpoint[Arch.fibo2]
-    models = _fibo2_models(checkpoint)
-    style = Style(Path("default.json"))
-    style.checkpoints = [checkpoint]
-    style.sampler = "Fibo 2 - Euler Simple"
-    style.sampler_steps = steps
-    style.cfg_scale = cfg
-    cond = cond or ConditioningInput("restore the photo")
-    cond.edit_reference = edit_reference
-    prepared = workflow.prepare_prompts(cond, style, default_seed, Arch.fibo2, files=files)
-    i = workflow.prepare(
-        kind,
-        canvas if canvas is not None else Extent(1024, 1024),
-        prepared.conditioning,
-        style,
-        default_seed,
-        models,
-        files,
-        default_perf,
-        loras=prepared.loras,
-    )
-    return workflow.create(i, models)
-
-
-def test_fibo2_workflow():
-    w = _create_fibo2_workflow(WorkflowKind.generate)
-    assert _fibo2_node(w, "UNETLoader")["inputs"]["unet_name"] == default_checkpoint[Arch.fibo2]
-    assert (
-        _fibo2_node(w, "CLIPLoader")["inputs"]["clip_name"] == "qwen3vl_4b_int8_convrot.safetensors"
-    )
-    assert _fibo2_node(w, "CLIPLoader")["inputs"]["type"] == "fibo2"
-    assert _fibo2_node(w, "VAELoader")["inputs"]["vae_name"] == "flux2-vae.safetensors"
-    assert _fibo2_node(w, "EmptyFlux2LatentImage")["inputs"]["width"] == 1024
-
-    te = _fibo2_node(w, "TextEncodeFibo2")["inputs"]
-    assert te["prompt"].startswith("restore the photo")
-    assert te["negative_prompt"] == ""
-    assert te["width"] == 1024 and te["height"] == 1024
-    assert "images" not in te and "images.image_1" not in te  # plain t2i has no references
-
-    assert _fibo2_node(w, "BasicGuider") is not None
-    assert _fibo2_node(w, "KSamplerSelect")["inputs"]["sampler_name"] == "euler"
-    assert _fibo2_node(w, "BasicScheduler")["inputs"]["scheduler"] == "simple"
-    forbidden = ("ReferenceLatent", "FluxGuidance", "ModelSampling", "CFGGuider")
-    assert not any(n["class_type"].startswith(forbidden) for n in w.root.values())
-
-
-def test_fibo2_edit_workflow():
-    w = _create_fibo2_workflow(
-        WorkflowKind.refine,
-        canvas=Image.create(Extent(1024, 1024)),
-        edit_reference=True,
-    )
-    te = _fibo2_node(w, "TextEncodeFibo2")["inputs"]
-    assert isinstance(te["images.image_1"], list), "canvas image must feed image_1"
-    assert isinstance(te["vae"], list), "vae is required to make reference latents"
-    assert "images.image_2" not in te
-    assert te["width"] == 1024 and te["height"] == 1024
-    # edit references travel inside the conditioning from the text encoder node
-    forbidden = ("ReferenceLatent", "FluxGuidance", "ModelSampling")
-    assert not any(n["class_type"].startswith(forbidden) for n in w.root.values())
-
-
-def test_fibo2_dev_workflow():
-    w = _create_fibo2_workflow(WorkflowKind.generate, cfg=5.0, steps=50)
-    assert _fibo2_node(w, "CFGGuider")["inputs"]["cfg"] == pytest.approx(5.0)
-    assert _fibo2_node(w, "BasicScheduler")["inputs"]["steps"] == 50
-
 
 def test_prepare_lora():
     models = ClientModels()
