@@ -214,6 +214,9 @@ def load_checkpoint_with_lora(w: ComfyWorkflow, checkpoint: CheckpointInput, mod
     if checkpoint.attention_backend and checkpoint.attention_backend.lower() != "no":
         model = w.model_attention_backend(model, checkpoint.attention_backend)
 
+    if arch is Arch.moss:
+        model = w.skip_layer_guidance(model, single_layers="22")
+
     return model, Clip(clip, arch), vae
 
 

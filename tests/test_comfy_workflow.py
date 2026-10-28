@@ -175,3 +175,5 @@ def test_moss_lora_model_only():
     assert "LoraLoader" not in nodes
     assert nodes["LoraLoaderModelOnly"]["lora_name"] == "test_lora.safetensors"
     assert nodes["LoraLoaderModelOnly"]["strength_model"] == 0.7
+    assert "SkipLayerGuidanceDiTSimple" in nodes
+    assert nodes["SkipLayerGuidanceDiTSimple"]["single_layers"] == "22"
