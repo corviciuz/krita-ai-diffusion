@@ -150,3 +150,28 @@ def test_text_generate():
     assert w.node(out.node).inputs["sampling_mode"] == "off"
     out2 = w.text_generate("mock_clip", "cat")  # type: ignore
     assert out.node == out2.node
+
+
+def test_moss_lora_model_only():
+    from ai_diffusion.backend import workflow
+    from ai_diffusion.backend.api import CheckpointInput, LoraInput
+    from ai_diffusion.backend.client import CheckpointInfo, ClientModels
+    from ai_diffusion.backend.resources import ResourceKind, resource_id
+    from ai_diffusion.files import FileFormat
+
+    w = ComfyWorkflow()
+    models = ClientModels()
+    models.checkpoints = {
+        "MOSS": CheckpointInfo("moss.safetensors", Arch.moss, FileFormat.diffusion)
+    }
+    models.resources = {
+        resource_id(ResourceKind.text_encoder, Arch.all, "qwen_35_9b"): "qwen3.5.safetensors",
+        resource_id(ResourceKind.vae, Arch.moss, "default"): "flux2-vae.safetensors",
+    }
+    checkpoint = CheckpointInput("MOSS", Arch.moss, loras=[LoraInput("test_lora.safetensors", 0.7)])
+    _model, _clip, _vae = workflow.load_checkpoint_with_lora(w, checkpoint, models)
+    nodes = {n["class_type"]: n["inputs"] for n in w.root.values()}
+    assert "LoraLoaderModelOnly" in nodes
+    assert "LoraLoader" not in nodes
+    assert nodes["LoraLoaderModelOnly"]["lora_name"] == "test_lora.safetensors"
+    assert nodes["LoraLoaderModelOnly"]["strength_model"] == 0.7

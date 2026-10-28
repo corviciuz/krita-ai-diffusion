@@ -186,8 +186,12 @@ def load_checkpoint_with_lora(w: ComfyWorkflow, checkpoint: CheckpointInput, mod
     if checkpoint.dynamic_caching and support_fbc:
         model = w.easy_cache(model, arch)
 
-    for lora in checkpoint.loras:
-        model, clip = w.load_lora(model, clip, lora.name, lora.strength, lora.strength)
+    if arch is Arch.moss:
+        for lora in checkpoint.loras:
+            model = w.load_lora_model(model, lora.name, lora.strength)
+    else:
+        for lora in checkpoint.loras:
+            model, clip = w.load_lora(model, clip, lora.name, lora.strength, lora.strength)
 
     if arch is Arch.sd3:
         model = w.model_sampling_sd3(model)
