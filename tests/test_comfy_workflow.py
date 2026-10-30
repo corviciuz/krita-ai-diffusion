@@ -177,3 +177,27 @@ def test_moss_lora_model_only():
     assert nodes["LoraLoaderModelOnly"]["strength_model"] == 0.7
     assert "SkipLayerGuidanceDiTSimple" in nodes
     assert nodes["SkipLayerGuidanceDiTSimple"]["single_layers"] == "22"
+
+
+def test_custom_text_encoder():
+    from ai_diffusion.backend import workflow
+    from ai_diffusion.backend.api import CheckpointInput
+    from ai_diffusion.backend.client import CheckpointInfo, ClientModels
+    from ai_diffusion.backend.resources import ResourceKind, resource_id
+    from ai_diffusion.files import FileFormat
+
+    w = ComfyWorkflow()
+    models = ClientModels()
+    models.checkpoints = {
+        "MOSS": CheckpointInfo("moss.safetensors", Arch.moss, FileFormat.diffusion)
+    }
+    models.resources = {
+        resource_id(ResourceKind.text_encoder, Arch.all, "qwen_35_9b"): "qwen3.5.safetensors",
+        resource_id(ResourceKind.vae, Arch.moss, "default"): "flux2-vae.safetensors",
+    }
+    checkpoint = CheckpointInput("MOSS", Arch.moss, text_encoder="my_custom_te.safetensors")
+    _model, _clip, _vae = workflow.load_checkpoint_with_lora(w, checkpoint, models)
+    nodes = {n["class_type"]: n["inputs"] for n in w.root.values()}
+    assert "CLIPLoader" in nodes
+    assert nodes["CLIPLoader"]["clip_name"] == "my_custom_te.safetensors"
+    assert nodes["CLIPLoader"]["type"] == "moss_image"

@@ -245,6 +245,26 @@ class Arch(Enum):
         return self in [Arch.qwen, Arch.qwen_e, Arch.qwen_e_p, Arch.qwen_l]
 
     @property
+    def has_llm_text_encoder(self):
+        return self in [
+            Arch.flux2_4b,
+            Arch.flux2_9b,
+            Arch.flux3,
+            Arch.chroma,
+            Arch.qwen,
+            Arch.qwen_e,
+            Arch.qwen_e_p,
+            Arch.qwen_l,
+            Arch.qwen2,
+            Arch.anima,
+            Arch.zimage,
+            Arch.ernie,
+            Arch.krea2,
+            Arch.moss,
+            Arch.fibo2,
+        ]
+
+    @property
     def text_encoders(self):
         match self:
             case Arch.sd15:

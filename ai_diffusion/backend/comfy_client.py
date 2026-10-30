@@ -591,6 +591,11 @@ class ComfyClient(Client):
 
         models.vae = nodes.options("VAELoader", "vae_name")
         models.loras = nodes.options("LoraLoader", "lora_name")
+        te_models = set(nodes.options("CLIPLoader", "clip_name"))
+        te_models.update(nodes.options("DualCLIPLoader", "clip_name1"))
+        te_models.update(nodes.options("CLIPLoaderGGUF", "clip_name"))
+        te_models.update(nodes.options("DualCLIPLoaderGGUF", "clip_name1"))
+        models.text_encoders = sorted(te_models)
         models.node_inputs = nodes
 
         if "UnetLoaderGGUF" in nodes:

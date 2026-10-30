@@ -134,6 +134,13 @@ def load_checkpoint_with_lora(w: ComfyWorkflow, checkpoint: CheckpointInput, mod
 
     if clip is None or arch is Arch.sd3:
         te = models.for_arch(arch).text_encoder
+        custom_te = (
+            checkpoint.text_encoder
+            if arch.has_llm_text_encoder
+            and checkpoint.text_encoder
+            and checkpoint.text_encoder != StyleSettings.text_encoder.default
+            else None
+        )
         match arch:
             case Arch.sd15:
                 clip = w.load_clip(te["clip_l"], "stable_diffusion")
@@ -147,30 +154,30 @@ def load_checkpoint_with_lora(w: ComfyWorkflow, checkpoint: CheckpointInput, mod
             case Arch.flux | Arch.flux_k:
                 clip = w.load_dual_clip(te["clip_l"], te["t5"], type="flux")
             case Arch.flux2_4b:
-                clip = w.load_clip(te["qwen_3_4b"], type="flux2")
+                clip = w.load_clip(custom_te or te["qwen_3_4b"], type="flux2")
             case Arch.flux2_9b:
-                clip = w.load_clip(te["qwen_3_8b"], type="flux2")
+                clip = w.load_clip(custom_te or te["qwen_3_8b"], type="flux2")
             case Arch.chroma:
-                clip = w.load_clip(te["t5"], type="chroma")
+                clip = w.load_clip(custom_te or te["t5"], type="chroma")
                 clip = w.t5_tokenizer_options(clip, min_padding=1, min_length=0)
             case Arch.qwen | Arch.qwen_e | Arch.qwen_e_p | Arch.qwen_l:
-                clip = w.load_clip(te["qwen"], type="qwen_image")
+                clip = w.load_clip(custom_te or te["qwen"], type="qwen_image")
             case Arch.anima:
-                clip = w.load_clip(te["qwen_3_06b"], type="omnigen2")
+                clip = w.load_clip(custom_te or te["qwen_3_06b"], type="omnigen2")
             case Arch.zimage:
-                clip = w.load_clip(te["qwen_3_4b"], type="lumina2")
+                clip = w.load_clip(custom_te or te["qwen_3_4b"], type="lumina2")
             case Arch.ernie:
-                clip = w.load_clip(te["ministral"], type="flux2")
+                clip = w.load_clip(custom_te or te["ministral"], type="flux2")
             case Arch.krea2:
-                clip = w.load_clip(te["qwen_3vl_4b"], type="krea2")
+                clip = w.load_clip(custom_te or te["qwen_3vl_4b"], type="krea2")
             case Arch.qwen2:
-                clip = w.load_clip(te["qwen_3vl_8b"], type="qwen_image")
+                clip = w.load_clip(custom_te or te["qwen_3vl_8b"], type="qwen_image")
             case Arch.moss:
-                clip = w.load_clip(te["qwen_35_9b"], type="moss_image")
+                clip = w.load_clip(custom_te or te["qwen_35_9b"], type="moss_image")
             case Arch.fibo2:
-                clip = w.load_clip(te["qwen_3vl_4b"], type="fibo2")
+                clip = w.load_clip(custom_te or te["qwen_3vl_4b"], type="fibo2")
             case Arch.flux3:
-                clip = w.load_clip(te["qwen_3vl_4b"], type="flux3")
+                clip = w.load_clip(custom_te or te["qwen_3vl_4b"], type="flux3")
             case _:
                 raise RuntimeError(f"No text encoder for model architecture {arch.name}")
 
@@ -2068,6 +2075,19 @@ def _check_server_has_models(
             _(
                 "The VAE '{vae}' used by style '{style}' is not available on the server",
                 vae=input.vae,
+                style=style_name,
+            )
+        )
+
+    if (
+        input.text_encoder
+        and input.text_encoder != StyleSettings.text_encoder.default
+        and input.text_encoder not in models.text_encoders
+    ):
+        raise ValueError(
+            _(
+                "The text encoder '{te}' used by style '{style}' is not available on the server",
+                te=input.text_encoder,
                 style=style_name,
             )
         )

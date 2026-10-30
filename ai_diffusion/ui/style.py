@@ -1026,6 +1026,9 @@ class StylePresets(SettingsTab):
             "architecture", ComboBoxSetting(StyleSettings.architecture, parent=self)
         )
         self._vae = add("vae", ComboBoxSetting(StyleSettings.vae, parent=self))
+        self._text_encoder = add(
+            "text_encoder", ComboBoxSetting(StyleSettings.text_encoder, parent=self)
+        )
 
         self._clip_skip = self._style_widgets["clip_skip"] = SpinBoxSetting(
             StyleSettings.clip_skip, self, 0, 12
@@ -1065,6 +1068,7 @@ class StylePresets(SettingsTab):
         self._checkpoint_advanced_widgets = [
             self._arch_select,
             self._vae,
+            self._text_encoder,
             self._clip_skip,
             self._resolution_spin,
             self._zsnr,
@@ -1331,6 +1335,7 @@ class StylePresets(SettingsTab):
                 self._arch_select.value = self.current_style.architecture
         self._clip_skip_check.setEnabled(arch.supports_clip_skip)
         self._clip_skip.enabled = arch.supports_clip_skip and self.current_style.clip_skip > 0
+        self._text_encoder.enabled = arch.has_llm_text_encoder
         self._zsnr.enabled = arch.supports_attention_guidance
         self._sag.enabled = arch.supports_attention_guidance
         self._prompt_enhance.enabled = arch.supports_prompt_enhance
@@ -1354,6 +1359,10 @@ class StylePresets(SettingsTab):
         if client := root.connection.client_if_connected:
             default_vae = cast(str, StyleSettings.vae.default)
             self._style_widgets["vae"].set_items([default_vae] + client.models.vae)
+            default_te = cast(str, StyleSettings.text_encoder.default)
+            self._style_widgets["text_encoder"].set_items(
+                [default_te] + client.models.text_encoders
+            )
         self._setup_edit_style()
         self._read_style(self.current_style)
 
