@@ -566,6 +566,11 @@ class ComfyWorkflow:
             node, 1, clip_name1=clip_name1, clip_name2=clip_name2, clip_name3=clip_name3
         )
 
+    def clip_attention_multiply(
+        self, clip: Output, q: float, k: float, v: float, out: float
+    ):
+        return self.add("CLIPAttentionMultiply", 1, clip=clip, q=q, k=k, v=v, out=out)
+
     def load_vae(self, vae_name: str):
         return self.add_cached("VAELoader", 1, vae_name=vae_name)
 

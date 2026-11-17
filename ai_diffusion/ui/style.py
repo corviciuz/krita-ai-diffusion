@@ -1029,6 +1029,15 @@ class StylePresets(SettingsTab):
         self._text_encoder = add(
             "text_encoder", ComboBoxSetting(StyleSettings.text_encoder, parent=self)
         )
+        self._clip_attention = [
+            add("clip_attention_q", SliderSetting(StyleSettings.clip_attention_q, self, 0, 10, 2)),
+            add("clip_attention_k", SliderSetting(StyleSettings.clip_attention_k, self, 0, 10, 2)),
+            add("clip_attention_v", SliderSetting(StyleSettings.clip_attention_v, self, 0, 10, 2)),
+            add(
+                "clip_attention_out",
+                SliderSetting(StyleSettings.clip_attention_out, self, 0, 10, 2),
+            ),
+        ]
 
         self._clip_skip = self._style_widgets["clip_skip"] = SpinBoxSetting(
             StyleSettings.clip_skip, self, 0, 12
@@ -1069,6 +1078,7 @@ class StylePresets(SettingsTab):
             self._arch_select,
             self._vae,
             self._text_encoder,
+            *self._clip_attention,
             self._clip_skip,
             self._resolution_spin,
             self._zsnr,

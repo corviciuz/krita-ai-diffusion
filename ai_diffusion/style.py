@@ -71,6 +71,19 @@ class StyleSettings:
         _("Model to encode text prompts for architectures with separate LLM encoders."),
     )
 
+    clip_attention_q = Setting(
+        _("CLIP Attention Q"), 1.0, _("Multiplier for the query projection in CLIP attention.")
+    )
+    clip_attention_k = Setting(
+        _("CLIP Attention K"), 1.0, _("Multiplier for the key projection in CLIP attention.")
+    )
+    clip_attention_v = Setting(
+        _("CLIP Attention V"), 1.0, _("Multiplier for the value projection in CLIP attention.")
+    )
+    clip_attention_out = Setting(
+        _("CLIP Attention Out"), 1.0, _("Multiplier for the output projection in CLIP attention.")
+    )
+
     clip_skip = Setting(
         _("Clip Skip"),
         0,
@@ -163,6 +176,10 @@ class Style(QObject):
     negative_prompt: str = StyleSettings.negative_prompt.default
     vae: str = StyleSettings.vae.default
     text_encoder: str = StyleSettings.text_encoder.default
+    clip_attention_q: float = StyleSettings.clip_attention_q.default
+    clip_attention_k: float = StyleSettings.clip_attention_k.default
+    clip_attention_v: float = StyleSettings.clip_attention_v.default
+    clip_attention_out: float = StyleSettings.clip_attention_out.default
     clip_skip: int = StyleSettings.clip_skip.default
     v_prediction_zsnr: bool = StyleSettings.v_prediction_zsnr.default
     rescale_cfg: float = StyleSettings.rescale_cfg.default
@@ -264,6 +281,10 @@ class Style(QObject):
             checkpoint=self.preferred_checkpoint(available_checkpoints),
             vae=self.vae,
             text_encoder=self.text_encoder,
+            clip_attention_q=self.clip_attention_q,
+            clip_attention_k=self.clip_attention_k,
+            clip_attention_v=self.clip_attention_v,
+            clip_attention_out=self.clip_attention_out,
             clip_skip=self.clip_skip,
             v_prediction_zsnr=self.v_prediction_zsnr,
             rescale_cfg=self.rescale_cfg,

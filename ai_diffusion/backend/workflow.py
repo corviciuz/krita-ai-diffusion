@@ -181,6 +181,14 @@ def load_checkpoint_with_lora(w: ComfyWorkflow, checkpoint: CheckpointInput, mod
             case _:
                 raise RuntimeError(f"No text encoder for model architecture {arch.name}")
 
+    clip = w.clip_attention_multiply(
+        clip,
+        checkpoint.clip_attention_q,
+        checkpoint.clip_attention_k,
+        checkpoint.clip_attention_v,
+        checkpoint.clip_attention_out,
+    )
+
     if arch.supports_clip_skip and checkpoint.clip_skip != StyleSettings.clip_skip.default:
         clip = w.clip_set_last_layer(clip, (checkpoint.clip_skip * -1))
 

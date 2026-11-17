@@ -69,6 +69,10 @@ class CheckpointInput:
     tiled_vae: bool = False
     attention_backend: str = "no"
     prompt_enhance: bool = False
+    clip_attention_q: float = 1.0
+    clip_attention_k: float = 1.0
+    clip_attention_v: float = 1.0
+    clip_attention_out: float = 1.0
 
 
 @dataclass
