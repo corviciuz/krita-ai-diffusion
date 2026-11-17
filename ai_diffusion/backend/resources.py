@@ -242,7 +242,7 @@ class Arch(Enum):
 
     @property
     def is_qwen_like(self):
-        return self in [Arch.qwen, Arch.qwen_e, Arch.qwen_e_p, Arch.qwen_l]
+        return self in [Arch.qwen, Arch.qwen_e, Arch.qwen_e_p, Arch.qwen_l, Arch.qwen2]
 
     @property
     def has_llm_text_encoder(self):

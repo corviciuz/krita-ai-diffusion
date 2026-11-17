@@ -390,3 +390,13 @@ def test_tile_layout(test_set):
         coord = layout.coord(i)
         assert layout.start(coord) == expected["start"]
         assert layout.end(coord) == expected["end"]
+
+
+@pytest.mark.parametrize(
+    "arch",
+    [Arch.qwen, Arch.qwen_e, Arch.qwen_e_p, Arch.qwen_l, Arch.qwen2],
+)
+def test_qwen_diffusion_multiple(arch: Arch):
+    assert resolution.diffusion_multiple(arch) == 16
+    assert arch.is_qwen_like
+
