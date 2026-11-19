@@ -9,6 +9,7 @@ from PyQt6.QtCore import (
     QItemSelectionModel,
     QMetaObject,
     QPoint,
+    QRectF,
     QSize,
     Qt,
     QTimer,
@@ -23,7 +24,9 @@ from PyQt6.QtGui import (
     QKeyEvent,
     QKeySequence,
     QMouseEvent,
+    QPainter,
     QPalette,
+    QPen,
 )
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -146,9 +149,11 @@ class HistoryWidget(QListWidget):
         self._connections = [
             jobs.selection_changed.connect(self.update_selection),
             jobs.job_finished.connect(self.add),
+            jobs.job_cancelled.connect(self.on_job_cancelled),
             jobs.job_discarded.connect(self.remove),
             jobs.result_used.connect(self.update_image_thumbnail),
             jobs.result_discarded.connect(self.remove_image),
+            jobs.step_preview_updated.connect(self.update_step_preview),
         ]
         self.rebuild()
         self.update_selection()
@@ -159,6 +164,19 @@ class HistoryWidget(QListWidget):
 
         scrollbar = self.verticalScrollBar()
         scroll_to_bottom = scrollbar and scrollbar.value() >= scrollbar.maximum() - 4
+
+        existing_item = self._find(JobQueue.Item(ensure(job.id), 0))
+        if existing_item is not None:
+            if isinstance(existing_item, ProgressListItem):
+                existing_item.stop_progress()
+            existing_item.setIcon(self._image_thumbnail(job, 0))
+            existing_item.setText(self._generation_time_text(job))
+            if job.kind is JobKind.diffusion and not job.params.is_layered:
+                for i in range(1, len(job.results)):
+                    self._add_item(job, QListWidgetItem(self._image_thumbnail(job, i), None), i)
+            if scroll_to_bottom:
+                self.scrollToBottom()
+            return
 
         if not JobParams.equal_ignore_seed(self._last_job_params, job.params):
             self._last_job_params = job.params
@@ -190,6 +208,40 @@ class HistoryWidget(QListWidget):
         if scroll_to_bottom:
             self.scrollToBottom()
 
+    def update_step_preview(self, job: Job, image: Image):
+        if job.id is None:
+            return
+        item = self._find(JobQueue.Item(job.id, 0))
+        if item is None:
+            if not JobParams.equal_ignore_seed(self._last_job_params, job.params):
+                self._last_job_params = job.params
+                prompt = job.params.name if job.params.name != "" else "<no prompt>"
+                strength = job.params.metadata.get("strength", 1.0)
+                strength = f"{strength * 100:.0f}% - " if not is_one(strength) else ""
+
+                header = QListWidgetItem(f"{job.timestamp.astimezone():%H:%M} - {strength}{prompt}")
+                header.setFlags(Qt.ItemFlag.NoItemFlags)
+                header.setData(Qt.ItemDataRole.UserRole, job.id)
+                header.setData(Qt.ItemDataRole.ToolTipRole, job.params.prompt)
+                header.setSizeHint(QSize(9999, self.fontMetrics().lineSpacing() + 4))
+                header.setTextAlignment(Qt.AlignmentFlag.AlignLeft)
+                self.addItem(header)
+
+            progress_item = ProgressListItem(image, self._thumb_size)
+            self._add_item(job, progress_item, 0)
+            if self._model.jobs.selection and self._model.jobs.selection[0].job == job.id:
+                progress_item.setSelected(True)
+            self.scrollToBottom()
+        elif isinstance(item, ProgressListItem):
+            item.update_image(image)
+
+    def on_job_cancelled(self, job: Job):
+        if job.id is None:
+            return
+        if item := self._find(JobQueue.Item(job.id, 0)):
+            if isinstance(item, ProgressListItem):
+                item.stop_progress()
+
     def _add_item(self, job: Job, item: QListWidgetItem, index=0):
         item.setData(Qt.ItemDataRole.UserRole, job.id)
         item.setData(Qt.ItemDataRole.UserRole + 1, index)
@@ -200,9 +252,7 @@ class HistoryWidget(QListWidget):
 
     def _generation_time_text(self, job: Job):
         if settings.show_generation_time and job.generation_time is not None:
-            return _(
-                "{time}", time=f"{job.generation_time:.2f} s"
-            )
+            return _("{time}", time=f"{job.generation_time:.2f} s")
         return ""
 
     _job_info_translations: ClassVar[dict[str, str]] = {
@@ -613,6 +663,81 @@ class AnimatedListItem(QListWidgetItem):
     def _next_frame(self):
         self._current = (self._current + 1) % len(self._images)
         self.setIcon(self._images[self._current])
+
+
+class ProgressListItem(QListWidgetItem):
+    _thumb_size: int
+    _base_image: Image
+    _spinner_angle: int = 0
+    _timer: QTimer
+    _is_running: bool = False
+
+    def __init__(self, image: Image, thumb_size: int):
+        super().__init__()
+        self._thumb_size = thumb_size
+        self._base_image = image
+        self._timer = QTimer()
+        self._timer.setSingleShot(False)
+        self._timer.timeout.connect(self._tick)
+        self._render()
+        self.start_progress()
+
+    def start_progress(self):
+        if not self._is_running:
+            self._is_running = True
+            self._timer.start(50)
+
+    def stop_progress(self):
+        if self._is_running:
+            self._timer.stop()
+            self._is_running = False
+            self.setIcon(self._create_thumb(self._base_image, draw_spinner=False).to_icon())
+
+    def update_image(self, image: Image):
+        self._base_image = image
+        self._render()
+
+    def _tick(self):
+        self._spinner_angle = (self._spinner_angle + 30) % 360
+        self._render()
+
+    def _create_thumb(self, image: Image, draw_spinner: bool) -> Image:
+        thumb = Image.scale_to_fit(image, Extent(self._thumb_size * 2, self._thumb_size * 2))
+        min_height = 2 * self._thumb_size
+        if thumb.extent.height < min_height:
+            thumb = Image.crop(thumb, Bounds(0, 0, thumb.extent.width, min_height))
+        if draw_spinner:
+            self._draw_spinner(thumb)
+        return thumb
+
+    def _draw_spinner(self, thumb: Image):
+        painter = QPainter(thumb._qimage)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        size = 28
+        padding = 8
+        x = thumb.extent.width - size - padding
+        y = padding
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(0, 0, 0, 160))
+        painter.drawEllipse(QRectF(float(x), float(y), float(size), float(size)))
+
+        pen = QPen(QColor(255, 255, 255, 240), 2.5)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+
+        rect = QRectF(float(x + 4), float(y + 4), float(size - 8), float(size - 8))
+        start_angle = int(self._spinner_angle * 16)
+        span_angle = 270 * 16
+        painter.drawArc(rect, start_angle, span_angle)
+
+        painter.end()
+
+    def _render(self):
+        thumb = self._create_thumb(self._base_image, draw_spinner=self._is_running)
+        self.setIcon(thumb.to_icon())
 
 
 class CustomInpaintWidget(QWidget):

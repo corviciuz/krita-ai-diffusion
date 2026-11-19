@@ -305,9 +305,7 @@ class Settings(QObject):
     _show_full_prompt_tooltip = Setting(
         _("Show Full Prompt in Tooltip"),
         False,
-        _(
-            "Show evaluated and final prompts in the result preview tooltip. "
-        ),
+        _("Show evaluated and final prompts in the result preview tooltip. "),
     )
 
     show_generation_time: bool
@@ -375,6 +373,13 @@ class Settings(QObject):
         _("Finished Generation"),
         GenerationFinishedAction.preview,
         _("Action to take when an image generation job finishes"),
+    )
+
+    step_preview: str
+    _step_preview = Setting(
+        _("Real-time Step Preview"),
+        "none",
+        _("Display intermediate preview images on the panel and canvas during generation"),
     )
 
     show_steps: bool

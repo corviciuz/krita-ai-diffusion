@@ -696,6 +696,15 @@ class DocumentModel(QObject, ObservableProperties):
             self.jobs.notify_started(job)
             self.progress_kind = ProgressKind.generation
             self.progress = message.progress
+        elif message.event is ClientEvent.step_preview:
+            if message.images and len(message.images) > 0:
+                preview_image = message.images[0]
+                job.step_preview = preview_image
+                if not self.jobs.selection and settings.step_preview != "none":
+                    self.jobs.select(job.id, 0)
+                self.jobs.step_preview_updated.emit(job, preview_image)
+                if self.jobs.selection and self.jobs.selection[0].job == job.id:
+                    self._update_step_preview_canvas(job, preview_image)
         elif message.event is ClientEvent.upload:
             self.jobs.notify_started(job)
             self.progress_kind = ProgressKind.upload
@@ -734,13 +743,31 @@ class DocumentModel(QObject, ObservableProperties):
 
             if job.id and job.kind in [JobKind.diffusion, JobKind.animation]:
                 action = settings.generation_finished_action
-                if action is GenerationFinishedAction.preview and self._layer is None:
-                    self.jobs.select(job.id, 0)
+                if action is GenerationFinishedAction.preview:
+                    if self._layer is None:
+                        self.jobs.select(job.id, 0)
+                    else:
+                        self.show_preview(job.id, 0)
                 elif action is GenerationFinishedAction.apply:
                     self.apply_generated_result(job.id, 0)
         else:
             self.jobs.notify_cancelled(job)
             self.progress = 0
+
+    def _update_step_preview_canvas(self, job: Job, preview_image: Image):
+        if job.kind is JobKind.animation:
+            return
+        name = f"[Preview] {trim_text(job.params.name, 77)}"
+        scaled = Image.scale(preview_image, job.params.bounds.extent)
+        bounds = Bounds(*job.params.bounds.offset, *scaled.extent)
+        if self._layer and self._layer.was_removed:
+            self._layer = None
+        if self._layer is not None:
+            self._layer.name = name
+            self._layer.write_pixels(scaled, bounds)
+        else:
+            self._layer = self.layers.create(name, scaled, bounds, make_active=False)
+            self._layer.is_locked = True
 
     def update_preview(self):
         if selection := self.jobs.selection:
@@ -755,7 +782,13 @@ class DocumentModel(QObject, ObservableProperties):
             return  # don't show animation preview on canvas (it's slow and clumsy)
 
         name = f"[{name_prefix}] {trim_text(job.params.name, 77)}"
-        image = job.results[index]
+        if job.state is JobState.executing and job.step_preview is not None:
+            image = Image.scale(job.step_preview, job.params.bounds.extent)
+        elif len(job.results) > index:
+            image = job.results[index]
+        else:
+            return
+
         bounds = Bounds(*job.params.bounds.offset, *image.extent)
         if self._layer and self._layer.was_removed:
             self._layer = None  # layer was removed by user

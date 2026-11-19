@@ -750,6 +750,7 @@ class InterfaceSettings(SettingsTab):
             "generation_finished_action",
             ComboBoxSetting(S._generation_finished_action, parent=self),
         )
+        self.add("step_preview", ComboBoxSetting(S._step_preview, parent=self))
         self.add("apply_behavior", ComboBoxSetting(S._apply_behavior, parent=self))
         self.add("apply_region_behavior", ComboBoxSetting(S._apply_region_behavior, parent=self))
         self.add("apply_behavior_live", ComboBoxSetting(S._apply_behavior_live, parent=self))
@@ -769,6 +770,7 @@ class InterfaceSettings(SettingsTab):
         languages = [(lang.name, lang.id) for lang in Localization.available]
         self._widgets["language"].set_items(languages)
         self.update_translation(root.connection.client_if_connected)
+        self.update_step_preview_models()
 
         for w in ["apply_region_behavior", "apply_region_behavior_live"]:
             self._widgets[w].show_label = False
@@ -776,6 +778,7 @@ class InterfaceSettings(SettingsTab):
         self._layout.addStretch()
 
     def read(self):
+        self.update_step_preview_models()
         super().read()
 
     def _tag_files(self) -> list[str]:
@@ -804,6 +807,33 @@ class InterfaceSettings(SettingsTab):
         translation.enabled = client is not None
         translation.set_items(languages)
         self.read()
+
+    def update_step_preview_models(self):
+        widget = cast(ComboBoxSetting, self._widgets["step_preview"])
+        items = [
+            (_("Disabled"), "none"),
+            (_("Auto"), "auto"),
+            (_("Latent2RGB"), "latent2rgb"),
+        ]
+        vae_models = set()
+        if client := root.connection.client_if_connected:
+            vae_models.update(client.models.vae_approx)
+        if server := root.server:
+            if server.comfy_dir:
+                approx_dir = server.comfy_dir / "models" / "vae_approx"
+                if approx_dir.exists():
+                    vae_models.update(
+                        f.name
+                        for f in approx_dir.iterdir()
+                        if f.is_file() and not f.name.startswith(".")
+                    )
+        for name in sorted(vae_models):
+            items.append((name, name))
+        widget.set_items(items)
+        if settings.step_preview in [v for _, v in items]:
+            widget.value = settings.step_preview
+        else:
+            widget.value = "none"
 
 
 class HistorySizeWidget(QWidget):
@@ -1252,6 +1282,7 @@ class SettingsDialog(QDialog):
 
         root.connection.state_changed.connect(self._update_connection)
         root.connection.models_changed.connect(self.styles.update_model_lists)
+        root.connection.models_changed.connect(self.interface.update_step_preview_models)
 
     def read(self):
         self.connection.read()

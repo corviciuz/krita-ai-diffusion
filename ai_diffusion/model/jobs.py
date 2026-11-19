@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from ..backend.api import InpaintMode, WorkflowKind
-from ..image import Bounds, ImageCollection
+from ..image import Bounds, Image, ImageCollection
 from ..settings import settings
 from ..style import SamplerPresets, Style
 from ..util import ensure
@@ -100,7 +100,6 @@ class JobParams:
         self.metadata["guidance"] = style.cfg_scale
         self.metadata["refine"] = style.linked_refine_model or "none"
 
-
     def set_control(self, control: control.ControlLayerList):
         self.metadata["control"] = [
             {
@@ -136,6 +135,7 @@ class Job:
     results: ImageCollection
     in_use: dict[int, bool]
     generation_time: float | None
+    step_preview: Image | None = None
 
     def __init__(self, id: str | None, kind: JobKind, params: JobParams):
         self.id = id
@@ -145,6 +145,7 @@ class Job:
         self.results = ImageCollection()
         self.in_use = {}
         self.generation_time = None
+        self.step_preview = None
 
     def result_was_used(self, index: int):
         return self.in_use.get(index, False)
@@ -160,9 +161,11 @@ class JobQueue(QObject):
     count_changed = pyqtSignal()
     selection_changed = pyqtSignal()
     job_finished = pyqtSignal(Job)
+    job_cancelled = pyqtSignal(Job)
     job_discarded = pyqtSignal(Job)
     result_used = pyqtSignal(Item)
     result_discarded = pyqtSignal(Item)
+    step_preview_updated = pyqtSignal(Job, Image)
 
     def __init__(self):
         super().__init__()
@@ -222,6 +225,7 @@ class JobQueue(QObject):
 
     def notify_cancelled(self, job: Job):
         job.state = JobState.cancelled
+        self.job_cancelled.emit(job)
         self._cancel_earlier_jobs(job)
         self.count_changed.emit()
 

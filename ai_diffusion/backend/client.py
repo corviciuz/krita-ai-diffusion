@@ -40,6 +40,7 @@ class ClientEvent(Enum):
     published = 8
     output = 9
     payment_required = 10
+    step_preview = 11
 
 
 class TextOutput(NamedTuple):
@@ -216,6 +217,7 @@ class ClientModels:
         self.text_encoders: list[str] = []
         self.loras: list[str] = []
         self.upscalers: list[str] = []
+        self.vae_approx: list[str] = []
         self.node_inputs = ComfyObjectInfo({})
         self.resources: dict[str, str | None] = {}
 
@@ -229,6 +231,7 @@ class ClientModels:
         models.text_encoders = data.get("text_encoders", [])
         models.loras = data.get("loras", [])
         models.upscalers = data.get("upscalers", [])
+        models.vae_approx = data.get("vae_approx", [])
         models.resources = data.get("resources", {})
         return models
 

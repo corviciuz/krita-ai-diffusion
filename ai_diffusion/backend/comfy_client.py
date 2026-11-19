@@ -184,9 +184,7 @@ class ComfyClient(Client):
 
         # Check custom nodes
         log.info("Checking for required custom nodes...")
-        node_data, languages = await asyncio.gather(
-            self._get("object_info"), _list_languages(self)
-        )
+        node_data, languages = await asyncio.gather(self._get("object_info"), _list_languages(self))
         nodes = ComfyObjectInfo(node_data)
         missing = _check_for_missing_nodes(nodes)
         if len(missing) > 0 and settings.check_server_resources:
@@ -234,6 +232,11 @@ class ComfyClient(Client):
 
         loras = nodes.options("LoraLoader", "lora_name")
         available_resources.update(_find_loras(loras))
+
+        try:
+            models.vae_approx = await self._get("models/vae_approx")
+        except Exception:
+            models.vae_approx = []
 
         # Workarounds for DirectML
         if self.device_info.type == "privateuseone":
@@ -350,11 +353,13 @@ class ComfyClient(Client):
 
         job.node_count = workflow.node_count
         job.sample_count = workflow.sample_count
-        data = {
+        data: dict[str, Any] = {
             "prompt": workflow.root,
             "client_id": self._id,
             "prompt_id": job.id,
         }
+        if settings.step_preview and settings.step_preview != "none":
+            data["extra_data"] = {"preview_method": settings.step_preview}
         self._waiting_job.set(job)
         try:
             result = await self._post("prompt", data)
@@ -399,9 +404,13 @@ class ComfyClient(Client):
 
         async for msg in websocket:
             if isinstance(msg, bytes):
-                image = _extract_message_png_image(memoryview(msg))
-                if image is not None:
-                    images.append(image)
+                image = _extract_message_preview_image(memoryview(msg))
+                if image is not None and self._active_job is not None:
+                    await self._report(
+                        ClientEvent.step_preview,
+                        self._active_job.id,
+                        images=ImageCollection([image]),
+                    )
 
             elif isinstance(msg, str):
                 msg = json.loads(msg)
@@ -537,7 +546,9 @@ class ComfyClient(Client):
             offset, total = 0, 100
             chunk_size = 64
             while offset < total and (time() - start) < timeout:
-                r = await self._get(f"api/etn/model_info/{folder_name}?offset={offset}&limit={chunk_size}")
+                r = await self._get(
+                    f"api/etn/model_info/{folder_name}?offset={offset}&limit={chunk_size}"
+                )
                 if "_meta" not in r:  # server doesn't support pagination
                     yield (Client.DiscoverStatus(folder_name, len(r), len(r)), r)
                     return
@@ -947,12 +958,12 @@ async def _list_languages(client: ComfyClient) -> list[TranslationPackage]:
         return []
 
 
-def _extract_message_png_image(data: memoryview):
+def _extract_message_preview_image(data: memoryview):
     s = struct.calcsize(">II")
     if len(data) > s:
         event, format = struct.unpack_from(">II", data)
-        # ComfyUI server.py: BinaryEventTypes.PREVIEW_IMAGE=1
-        if event == 1 and format == 2:  # format: JPEG=1, PNG=2
+        # ComfyUI server.py: BinaryEventTypes.PREVIEW_IMAGE=1, format: JPEG=1, PNG=2
+        if event == 1 and format in (1, 2):
             return Image.from_bytes(data[s:])
     return None
 
